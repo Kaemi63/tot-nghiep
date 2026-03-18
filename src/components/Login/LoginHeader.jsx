@@ -12,7 +12,7 @@ const LoginHeader = ({ onBack }) => {
       </button>
       <h2 className="text-3xl font-extrabold tracking-tight text-[#1e293b]">Mừng bạn quay lại</h2>
       <p className="text-neutral-500 text-sm font-light">
-        Vui lòng nhập thông tin để truy cập tủ đồ AI của bạn.
+        Vui lòng nhập thông tin để truy cập tủ đồ FSA của bạn.
       </p>
     </div>
   );
