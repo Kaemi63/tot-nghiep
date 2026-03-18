@@ -6,15 +6,15 @@ import FAQ from '../components/FAQ';
 import BottomCTA from '../components/BottomCTA';
 import Footer from '../components/Footer';
 
-function MainPage({ onNavigateToLogin }) { 
+function MainPage({ onNavigateToLogin, onNavigateToRegister }) { 
   return (
     <div className="app-container">
-      <Header onLoginClick={onNavigateToLogin} />
+      <Header onLoginClick={onNavigateToLogin} onRegisterClick={onNavigateToRegister} />
       <main>
-        <Hero />
+        <Hero onRegisterClick={onNavigateToRegister} />
         <Brands />
         <FAQ />
-        <BottomCTA />
+        <BottomCTA onRegisterClick={onNavigateToRegister} />
       </main>
       <Footer />
     </div>

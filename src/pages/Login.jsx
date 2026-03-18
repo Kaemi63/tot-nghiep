@@ -4,7 +4,7 @@ import LoginHeader from '../components/Login/LoginHeader';
 import FormLogin from '../components/Login/FormLogin';
 import SocialLogin from '../components/Login/SocialLogin';
 
-const Login = ({ onBack }) => {
+const Login = ({ onBack, onNavigateToRegister }) => {
   const handleLoginSubmit = (data) => {
     console.log("Dữ liệu đăng nhập:", data);
   };
@@ -24,7 +24,7 @@ const Login = ({ onBack }) => {
         <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <LoginHeader onBack={onBack} />
           <FormLogin onLogin={handleLoginSubmit} />
-          <SocialLogin onGoogleLogin={handleGoogleLogin} />
+          <SocialLogin onGoogleLogin={handleGoogleLogin} onNavigateToRegister={onNavigateToRegister} />
           
         </div>
       </div>

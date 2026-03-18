@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MainPage from './pages/Main'; // Nhập trang chủ
 import Login from './pages/Login';       // Nhập trang đăng nhập
+import Register from './pages/Register'; // Nhập trang đăng ký
 
 function App() {
   // Mặc định ban đầu là 'home' để hiện MainPage
@@ -11,18 +12,25 @@ function App() {
     setCurrentPage('login');
   };
 
-  // Hàm này truyền vào nút "Quay lại" ở trang Login
+  // Hàm đi tới trang đăng ký
+  const handleGoToRegister = () => {
+    setCurrentPage('register');
+  };
+
+  // Hàm này truyền vào nút "Quay lại" ở trang Login/Register
   const handleGoToHome = () => {
     setCurrentPage('home');
   };
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Điều kiện hiển thị: Nếu là 'home' thì hiện MainPage, ngược lại hiện Login */}
+      {/* Điều kiện hiển thị các trang */}
       {currentPage === 'home' ? (
-        <MainPage onNavigateToLogin={handleGoToLogin} />
+        <MainPage onNavigateToLogin={handleGoToLogin} onNavigateToRegister={handleGoToRegister} />
+      ) : currentPage === 'login' ? (
+        <Login onBack={handleGoToHome} onNavigateToRegister={handleGoToRegister} />
       ) : (
-        <Login onBack={handleGoToHome} />
+        <Register onBack={handleGoToHome} onNavigateToLogin={handleGoToLogin} />
       )}
     </div>
   );
