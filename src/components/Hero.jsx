@@ -23,7 +23,7 @@ const Hero = ({onRegisterClick}) => {
       <div className="absolute top-0 left-0 w-full h-full z-[5] pointer-events-none hidden lg:block">
         <div className="absolute top-[35%] left-[2%] xl:left-[8%] w-[220px] h-[280px] -rotate-6 z-10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.3)] border border-[#f1f5f9] pointer-events-auto overflow-hidden">
           <img 
-            src="https://images.unsplash.com/photo-1601762603339-fd61e28b698a?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
+            src="https://images.unsplash.com/photo-1574015974293-817f0ebebb74?q=80&w=673&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" 
             alt="Fashion 1" 
             className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
           />
