@@ -25,7 +25,7 @@ const LoginHero = () => {
           <span className="text-neutral-400 italic font-light">Phong cách</span>
         </h1>
         <p className="text-neutral-300 text-lg font-light leading-relaxed max-w-md">
-          Đăng nhập để khám phá những bộ outfit được AI gợi ý riêng cho gu thời trang của bạn.
+          Đăng nhập để khám phá những bộ outfit được FSA gợi ý riêng cho gu thời trang của bạn.
         </p>
       </div>
     </div>
