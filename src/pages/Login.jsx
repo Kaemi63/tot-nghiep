@@ -4,13 +4,17 @@ import LoginHeader from '../components/Login/LoginHeader';
 import FormLogin from '../components/Login/FormLogin';
 import SocialLogin from '../components/Login/SocialLogin';
 
-const Login = ({ onBack, onNavigateToRegister }) => {
+const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
   const handleLoginSubmit = (data) => {
     console.log("Dữ liệu đăng nhập:", data);
+    if (onLoginSuccess) {
+      onLoginSuccess();
+    }
   };
 
   const handleGoogleLogin = () => {
     console.log("Đang xử lý đăng nhập Google...");
+    if (onLoginSuccess) onLoginSuccess();
   };
 
   return (

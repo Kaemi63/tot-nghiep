@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import MainPage from './pages/Main'; // Nhập trang chủ
-import Login from './pages/Login';       // Nhập trang đăng nhập
-import Register from './pages/Register'; // Nhập trang đăng ký
-
+import MainPage from './pages/Main'; 
+import Login from './pages/Login';      
+import Register from './pages/Register'; 
+import ChatPage from './pages/ChatPage'; 
 function App() {
   // Mặc định ban đầu là 'home' để hiện MainPage
   const [currentPage, setCurrentPage] = useState('home');
@@ -21,19 +21,32 @@ function App() {
   const handleGoToHome = () => {
     setCurrentPage('home');
   };
+  const handleLoginSuccess = () => {
+    setCurrentPage('chat');
+  };
 
-  return (
+return (
     <div className="min-h-screen bg-white">
-      {/* Điều kiện hiển thị các trang */}
-      {currentPage === 'home' ? (
+      {currentPage === 'home' && (
         <MainPage onNavigateToLogin={handleGoToLogin} onNavigateToRegister={handleGoToRegister} />
-      ) : currentPage === 'login' ? (
-        <Login onBack={handleGoToHome} onNavigateToRegister={handleGoToRegister} />
-      ) : (
+      )}
+      
+      {currentPage === 'login' && (
+        <Login 
+          onBack={handleGoToHome} 
+          onNavigateToRegister={handleGoToRegister} 
+          onLoginSuccess={handleLoginSuccess} 
+        />
+      )}
+
+      {currentPage === 'register' && (
         <Register onBack={handleGoToHome} onNavigateToLogin={handleGoToLogin} />
+      )}
+
+      {currentPage === 'chat' && (
+        <ChatPage />
       )}
     </div>
   );
 }
-
 export default App;
