@@ -56,7 +56,7 @@ const ChatWindow = () => {
     <div className="flex flex-col h-screen w-full bg-white relative font-sans text-slate-900">
       <header className="p-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 shadow-sm">
         <button className="flex items-center gap-2 font-semibold text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg transition-all text-sm">
-          FSA Smart Consultation <ChevronDown size={18} />
+          FSA AI TEST <ChevronDown size={18} />
         </button>
         <div className="flex items-center gap-4 text-slate-400">
            <Sun size={20} className="cursor-pointer hover:text-orange-400" />
@@ -84,13 +84,7 @@ const ChatWindow = () => {
                   <span className="font-bold text-xs text-slate-400 uppercase tracking-widest">
                     {m.role === 'user' ? 'Trần Văn A' : 'FSA AI Assistant'}
                   </span>
-                  
-                  {/* 2. HIỂN THỊ NỘI DUNG ĐÃ ĐƯỢC FORMAT ĐẸP */}
-                  <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base
-                    prose-headings:font-bold prose-h3:text-lg prose-h3:mt-4
-                    prose-p:mb-3 prose-strong:text-indigo-600
-                    prose-ul:list-disc prose-ul:pl-5 prose-li:mb-1
-                    prose-hr:my-6">
+                  <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-baseprose-headings:font-bold prose-h3:text-lg prose-h3:mt-4prose-p:mb-3 prose-strong:text-indigo-600prose-ul:list-disc prose-ul:pl-5 prose-li:mb-1prose-hr:my-6">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm, remarkMath]} 
                       rehypePlugins={[rehypeKatex]}
@@ -112,7 +106,7 @@ const ChatWindow = () => {
             <input 
               ref={inputRef} type="text" autoComplete="off" value={input} onChange={handleInputChange}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onFormSubmit(e)}
-              placeholder="Hỏi FSA AI về phong cách Quite Luxury..."
+              placeholder="Hỏi FSA AI về phong cách thiết kế, xu hướng thời trang..."
               className="flex-1 bg-transparent py-3 px-4 outline-none text-slate-700 text-lg placeholder:text-slate-500"
             />
             <div className="flex items-center gap-1">
@@ -122,7 +116,7 @@ const ChatWindow = () => {
               )}
             </div>
           </form>
-          <p className="text-center text-[11px] text-slate-400 mt-4 tracking-tight">FSA AI hỗ trợ tư vấn phong cách chuyên nghiệp.</p>
+          <p className="text-center text-[11px] text-slate-400 mt-4 tracking-tight">FSA AI có thể mắc lỗi.</p>
         </div>
       </div>
     </div>
