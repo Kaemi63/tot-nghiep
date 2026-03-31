@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
     "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.101.0",
     "ai": "^6.0.134",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
