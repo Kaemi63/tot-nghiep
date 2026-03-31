@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Sun, Moon, Mic, SendHorizontal, Plus, ChevronDown, Zap } from 'lucide-react';
+import { Sun, Moon, Mic, SendHorizontal, Plus, ChevronDown, Zap, Home } from 'lucide-react';
 import { useChat } from '@ai-sdk/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -61,6 +61,7 @@ const ChatWindow = () => {
         <div className="flex items-center gap-4 text-slate-400">
            <Sun size={20} className="cursor-pointer hover:text-orange-400" />
            <Moon size={20} className="cursor-pointer hover:text-indigo-600" />
+           <Home size={20} className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer" />
         </div>
       </header>
 
