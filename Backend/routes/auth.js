@@ -47,7 +47,7 @@ router.post('/signup', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { identifier, password } = req.body;
   
-  // Tìm thông tin profile
+  // 1. Tìm thông tin profile (Xử lý lỗi Username/Email không tồn tại)
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('id, email, role, status, fullname')
@@ -55,22 +55,26 @@ router.post('/login', async (req, res) => {
     .single();
 
   if (profileError || !profile) {
-    return res.status(404).json({ error: "Không tìm thấy người dùng này" });
+    return res.status(404).json({ error: "Tài khoản hoặc email không tồn tại trong hệ thống." });
   }
 
+  // 2. Kiểm tra trạng thái tài khoản
   if (profile.status === 'banned' || profile.status === 'suspended') {
-    return res.status(403).json({ error: `Tài khoản của bạn đang bị ${profile.status}!` });
+    return res.status(403).json({ error: `Truy cập bị từ chối. Tài khoản của bạn đang bị ${profile.status}.` });
   }
 
-  // Đăng nhập Auth
+  // 3. Đăng nhập Auth (Kiểm tra mật khẩu)
   const { data, error: authError } = await supabase.auth.signInWithPassword({
     email: profile.email,
     password: password,
   });
 
-  if (authError) return res.status(401).json({ error: authError.message });
+  if (authError) {
+    // Thay vì gửi authError.message (tiếng Anh), ta gửi thông báo tiếng Việt đồng nhất
+    return res.status(401).json({ error: "Mật khẩu bạn nhập không chính xác." });
+  }
 
-  // Đồng bộ thông tin
+  // 4. Đồng bộ thông tin đăng nhập
   const emailVerifiedAt = data.user.email_confirmed_at;
   await supabase
     .from('profiles')
@@ -80,6 +84,7 @@ router.post('/login', async (req, res) => {
     })
     .eq('id', data.user.id);
 
+  // 5. Trả về kết quả hoàn chỉnh (Đã bao gồm Role và Fullname)
   res.status(200).json({ 
     session: data.session, 
     user: {
@@ -87,35 +92,40 @@ router.post('/login', async (req, res) => {
       email: data.user.email,
       role: profile.role,
       fullname: profile.fullname,
-      status: profile.status,
-      email_verified_at: emailVerifiedAt
+      status: profile.status
     } 
   });
 });
 // 3. Route Change Password 
-router.post('/change-password', async (req, res) => {
-  const { email, currentPassword, newPassword } = req.body;
+router.post('/update-profile', async (req, res) => {
+  const { id, fullname, phone, date_of_birth, gender } = req.body;
 
-  // 1. Thử đăng nhập bằng mật khẩu cũ để xác thực
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password: currentPassword,
-  });
+  try {
+    // 1. Cập nhật thông tin trong Supabase Auth (để đồng bộ hệ thống)
+    const { error: authError } = await supabase.auth.admin.updateUserById(id, {
+      phone: phone,
+      user_metadata: { fullname: fullname }
+    });
+    
+    if (authError) throw authError;
 
-  if (signInError) {
-    return res.status(401).json({ error: "Mật khẩu hiện tại không chính xác." });
+    // 2. Cập nhật thông tin trong bảng profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        fullname,
+        phone,
+        date_of_birth,
+        gender,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (profileError) throw profileError;
+
+    res.status(200).json({ message: "Cập nhật thành công!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  // 2. Nếu mật khẩu cũ đúng, tiến hành cập nhật mật khẩu mới
-  const { error: updateError } = await supabase.auth.admin.updateUserById(
-    signInData.user.id,
-    { password: newPassword }
-  );
-
-  if (updateError) {
-    return res.status(500).json({ error: "Không thể cập nhật mật khẩu mới." });
-  }
-
-  res.status(200).json({ message: "Đổi mật khẩu thành công!" });
 });
 module.exports = router;
