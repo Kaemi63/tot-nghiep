@@ -39,19 +39,15 @@ const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
         console.error("Lỗi lấy role:", profileError);
       }
 
-      // 3. Gộp role vào object user trước khi gửi cho App.jsx
       const userWithRole = { ...result.user, role: profile?.role || 'user' };
-      
-      // Lưu vào localStorage để dùng cho các trang khác
-      localStorage.setItem('fsa_user', JSON.stringify(userWithRole));
 
-      if (result.user && result.user.role) {
+        if (result.user && result.user.role) {
         localStorage.setItem('fsa_user_role', result.user.role);
         localStorage.setItem('fsa_user_name', result.user.fullname);
         }
 
         alert(`Chào mừng ${result.user.fullname || 'bạn'} quay trở lại!`);
-        
+        // Chuyển hướng hoặc thực hiện logic sau login
         if (onLoginSuccess) {
         onLoginSuccess(userWithRole); // Truyền object đã có role sang App.jsx
         }
