@@ -35,8 +35,12 @@ const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
           return;
         }
 
-        alert("Đăng nhập thành công!");
-        
+        if (result.user && result.user.role) {
+        localStorage.setItem('fsa_user_role', result.user.role);
+        localStorage.setItem('fsa_user_name', result.user.fullname);
+        }
+
+        alert(`Chào mừng ${result.user.fullname || 'bạn'} quay trở lại!`);
         // Chuyển hướng hoặc thực hiện logic sau login
         if (onLoginSuccess) {
           onLoginSuccess(result.user);

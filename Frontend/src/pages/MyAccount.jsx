@@ -41,24 +41,33 @@ const MyAccount = () => {
   }, []);
 
   // Hàm cập nhật thông tin cá nhân
-  const handleUpdateProfile = async (e) => {
+const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    
+    // Chuyển đổi giới tính sang format chuẩn của DB
+    const genderMap = {
+      'Nam': 'male',
+      'Nữ': 'female',
+      'Khác': 'other'
+    };
+
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
           fullname: user.fullname,
           phone: user.phone,
-          birthday: user.birthday,
-          gender: user.gender,
+          date_of_birth: user.date_of_birth, // Sửa từ birthday -> date_of_birth
+          gender: genderMap[user.gender] || 'other', // Map giá trị sang tiếng Anh
+          updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
       if (error) throw error;
       alert('Cập nhật thông tin thành công!');
     } catch (error) {
-      alert('Lỗi: ' + error.message);
+      alert('Lỗi lưu dữ liệu: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -157,11 +166,11 @@ const MyAccount = () => {
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Ngày sinh</label>
                       <input 
-                        type="date" 
-                        value={user?.birthday || ''} 
-                        onChange={(e) => setUser({...user, birthday: e.target.value})} 
-                        className="w-full rounded-xl border border-slate-200 p-3" 
-                      />
+                      type="date" 
+                      value={user?.date_of_birth || ''} 
+                      onChange={(e) => setUser({...user, date_of_birth: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 p-3" 
+                    />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Giới tính</label>
