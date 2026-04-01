@@ -20,6 +20,7 @@ const ChatPage = () => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
+  const [previousSection, setPreviousSection] = useState('storeHome');
 
   const handleNewChat = () => {
     setActiveSection('chat');
@@ -40,8 +41,12 @@ const ChatPage = () => {
   };
 
   const openProductDetail = (product) => {
+    setPreviousSection(activeSection);
     setSelectedProduct(product);
     setActiveSection('productDetail');
+  };
+  const handleBack = () => {
+  setActiveSection(previousSection);
   };
 
   const backToListing = () => {
@@ -67,14 +72,15 @@ const ChatPage = () => {
   const findCartItem = (productId) => cartItems.find((i) => i.product.id === productId);
 
   const addToCart = (product) => {
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
-        return prev.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { product: { ...product, priceRaw: Number(product.price.toString().replace(/\D/g, '')) || 0 }, quantity: 1 }];
-    });
-  };
+  setCartItems((prev) => {
+    const existing = prev.find((item) => item.product.id === product.id);
+    if (existing) {
+      return prev.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+    }
+    // Dùng base_price từ Backend
+    return [...prev, { product: { ...product, priceRaw: product.base_price || 0 }, quantity: 1 }];
+  });
+};
 
   const addToWishlist = (product) => {
     setWishlistItems((prev) => {
@@ -124,9 +130,9 @@ const ChatPage = () => {
       />
       <main className="flex-1 flex flex-col relative">
         {activeSection === 'chat' && <ChatWindow key={chatKey} />}
-        {activeSection === 'storeHome' && <StoreHome onFilterCategory={openProductListing} onOpenListing={openProductListing} onSearch={viewSearchResults} />}
-        {activeSection === 'productListing' && <ProductListing category={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
-        {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={backToListing} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
+        {activeSection === 'storeHome' && <StoreHome onFilterCategory={openProductListing} onOpenListing={openProductListing} onSearch={viewSearchResults} onSelectProduct={openProductDetail} />}
+        {activeSection === 'productListing' && <ProductListing categorySlug={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
+        {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'cart' && <CartPage cartItems={cartItems} onQuantityChange={updateCartQuantity} onRemoveItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons} />}
         {activeSection === 'checkout' && <CheckoutPage cartItems={cartItems} subtotal={cartItems.reduce((acc, item) => acc + item.product.priceRaw * item.quantity, 0)} onPlaceOrder={placeOrder} onBack={openCart} />}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}

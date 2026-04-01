@@ -3,13 +3,14 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const supabase = require('./config/supabaseClient');
+const productRoutes = require('./routes/product');
 
 require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
-
+app.use('/api/products', productRoutes);
 //API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 app.post('/api/chat', async (req, res) => {
