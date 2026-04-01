@@ -3,13 +3,13 @@ import { supabase } from '../lib/supabaseClient';
 
 const MyAccount = () => {
   const [activeTab, setActiveTab] = useState('profile');
-  const [profileSubTab, setProfileSubTab] = useState('edit'); // 'edit' hoặc 'password'
-  const [user, setUser] = useState(null);
+  const [profileSubTab, setProfileSubTab] = useState('edit'); 
+  const [user, setUser] = useState(null); // Dữ liệu gốc để hiển thị tiêu đề
+  const [editData, setEditData] = useState(null); // Dữ liệu tạm thời để gõ trong input
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [passwordData, setPasswordData] = useState({ current: '', newPass: '', confirm: '' });
 
-  // Thu gọn danh sách tab chính
   const tabs = useMemo(() => [
     { id: 'profile', label: 'Thông tin cá nhân' },
     { id: 'address', label: 'Địa chỉ giao hàng' },
@@ -17,6 +17,9 @@ const MyAccount = () => {
     { id: 'coupons', label: 'Mã giảm giá' },
   ], []);
 
+  const genderMapToView = { 'male': 'Nam', 'female': 'Nữ', 'other': 'Khác' };
+  const genderMapToDB = { 'Nam': 'male', 'Nữ': 'female', 'Khác': 'other' };
+  
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -28,7 +31,14 @@ const MyAccount = () => {
             .eq('id', session.user.id)
             .single();
 
-          if (data) setUser(data);
+          if (data) {
+            setUser(data);
+            // Khởi tạo dữ liệu chỉnh sửa dựa trên dữ liệu gốc
+            setEditData({
+              ...data,
+              gender: genderMapToView[data.gender] || 'Khác'
+            });
+          }
           if (error) throw error;
         }
       } catch (error) {
@@ -40,61 +50,63 @@ const MyAccount = () => {
     fetchUserData();
   }, []);
 
-  // Hàm cập nhật thông tin cá nhân
-const handleUpdateProfile = async (e) => {
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    
-    // Chuyển đổi giới tính sang format chuẩn của DB
-    const genderMap = {
-      'Nam': 'male',
-      'Nữ': 'female',
-      'Khác': 'other'
-    };
-
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          fullname: user.fullname,
-          phone: user.phone,
-          date_of_birth: user.date_of_birth, // Sửa từ birthday -> date_of_birth
-          gender: genderMap[user.gender] || 'other', // Map giá trị sang tiếng Anh
+          fullname: editData.fullname,
+          phone: editData.phone,
+          date_of_birth: editData.date_of_birth,
+          gender: genderMapToDB[editData.gender] || 'other', 
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
       if (error) throw error;
+      setUser({ ...editData, gender: genderMapToDB[editData.gender] }); 
       alert('Cập nhật thông tin thành công!');
-    } catch (error) {
-      alert('Lỗi lưu dữ liệu: ' + error.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Hàm đổi mật khẩu sử dụng Supabase Auth
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    if (passwordData.newPass !== passwordData.confirm) {
-      alert('Mật khẩu xác nhận không khớp!');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ 
-        password: passwordData.newPass 
-      });
-
-      if (error) throw error;
-      alert('Đổi mật khẩu thành công!');
-      setPasswordData({ current: '', newPass: '', confirm: '' });
     } catch (error) {
       alert('Lỗi: ' + error.message);
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handlePasswordChange = async (e) => {
+  e.preventDefault();
+  if (passwordData.newPass !== passwordData.confirm) {
+    alert('Mật khẩu xác nhận không khớp!');
+    return;
+  }
+
+  setIsSaving(true);
+  try {
+    // 1. Gọi API Backend để xác thực mật khẩu cũ và đổi mật khẩu mới
+    const response = await fetch('http://localhost:3001/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: user.email,
+        currentPassword: passwordData.current,
+        newPassword: passwordData.newPass
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) throw new Error(result.error);
+
+    alert('Đổi mật khẩu thành công!');
+    setPasswordData({ current: '', newPass: '', confirm: '' });
+  } catch (error) {
+    alert('Lỗi: ' + error.message);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   if (loading) return <div className="p-6 text-center">Đang tải dữ liệu...</div>;
 
@@ -112,7 +124,6 @@ const handleUpdateProfile = async (e) => {
         </div>
 
         <div className="border border-slate-200 rounded-2xl bg-white shadow-sm overflow-hidden">
-          {/* Thanh Tab Chính */}
           <div className="flex bg-slate-100 border-b border-slate-200 overflow-x-auto">
             {tabs.map((tab) => (
               <button
@@ -128,56 +139,44 @@ const handleUpdateProfile = async (e) => {
           <div className="p-6">
             {activeTab === 'profile' && (
               <div>
-                {/* Thanh Điều Hướng Phụ (Sub-tabs) */}
                 <div className="flex gap-4 mb-8 p-1 bg-slate-100 w-fit rounded-xl">
-                  <button 
-                    onClick={() => setProfileSubTab('edit')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${profileSubTab === 'edit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    Chỉnh sửa thông tin
-                  </button>
-                  <button 
-                    onClick={() => setProfileSubTab('password')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${profileSubTab === 'password' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    Đổi mật khẩu
-                  </button>
+                  <button onClick={() => setProfileSubTab('edit')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${profileSubTab === 'edit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Chỉnh sửa thông tin</button>
+                  <button onClick={() => setProfileSubTab('password')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${profileSubTab === 'password' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Đổi mật khẩu</button>
                 </div>
 
-                {/* Nội dung 1: Chỉnh sửa thông tin */}
                 {profileSubTab === 'edit' && (
                   <form onSubmit={handleUpdateProfile} className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-in fade-in duration-500">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Tên đầy đủ</label>
                       <input 
-                        value={user?.fullname || ''} 
-                        onChange={(e) => setUser({...user, fullname: e.target.value})} 
+                        value={editData?.fullname || ''} 
+                        onChange={(e) => setEditData({...editData, fullname: e.target.value})} 
                         className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Số điện thoại</label>
                       <input 
-                        value={user?.phone || ''} 
-                        onChange={(e) => setUser({...user, phone: e.target.value})} 
+                        value={editData?.phone || ''} 
+                        onChange={(e) => setEditData({...editData, phone: e.target.value})} 
                         className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Ngày sinh</label>
                       <input 
-                      type="date" 
-                      value={user?.date_of_birth || ''} 
-                      onChange={(e) => setUser({...user, date_of_birth: e.target.value})}
-                      className="w-full rounded-xl border border-slate-200 p-3" 
-                    />
+                        type="date" 
+                        value={editData?.date_of_birth || ''} 
+                        onChange={(e) => setEditData({...editData, date_of_birth: e.target.value})} 
+                        className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Giới tính</label>
                       <select 
-                        value={user?.gender || 'Nam'} 
-                        onChange={(e) => setUser({...user, gender: e.target.value})} 
-                        className="w-full rounded-xl border border-slate-200 p-3"
+                        value={editData?.gender || 'Khác'} 
+                        onChange={(e) => setEditData({...editData, gender: e.target.value})} 
+                        className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         <option>Nam</option>
                         <option>Nữ</option>
@@ -185,20 +184,28 @@ const handleUpdateProfile = async (e) => {
                       </select>
                     </div>
                     <div className="sm:col-span-2 pt-4">
-                      <button 
-                        type="submit" 
-                        disabled={isSaving}
-                        className="px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-slate-300 transition-all"
-                      >
+                      <button type="submit" disabled={isSaving} className="px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-slate-300 transition-all">
                         {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
                       </button>
                     </div>
                   </form>
                 )}
 
-                {/* Nội dung 2: Đổi mật khẩu */}
                 {profileSubTab === 'password' && (
                   <form onSubmit={handlePasswordChange} className="max-w-md space-y-5 animate-in fade-in duration-500">
+                    {/* Ô MẬT KHẨU CŨ - MỚI THÊM */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500 uppercase">Mật khẩu hiện tại</label>
+                      <input 
+                        type="password" 
+                        value={passwordData.current} 
+                        onChange={(e) => setPasswordData({...passwordData, current: e.target.value})} 
+                        className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
+                        placeholder="Nhập mật khẩu đang dùng"
+                        required 
+                      />
+                    </div>
+
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Mật khẩu mới</label>
                       <input 
@@ -206,10 +213,11 @@ const handleUpdateProfile = async (e) => {
                         value={passwordData.newPass} 
                         onChange={(e) => setPasswordData({...passwordData, newPass: e.target.value})} 
                         className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Nhập tối thiểu 6 ký tự"
+                        placeholder="Tối thiểu 6 ký tự"
                         required 
                       />
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-500 uppercase">Xác nhận mật khẩu mới</label>
                       <input 
@@ -217,28 +225,25 @@ const handleUpdateProfile = async (e) => {
                         value={passwordData.confirm} 
                         onChange={(e) => setPasswordData({...passwordData, confirm: e.target.value})} 
                         className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-indigo-500" 
-                        placeholder="Nhập lại mật khẩu trên"
+                        placeholder="Nhập lại mật khẩu mới"
                         required 
                       />
                     </div>
+
                     <div className="pt-4">
                       <button 
                         type="submit" 
-                        disabled={isSaving}
-                        className="px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-slate-300 transition-all"
+                        disabled={isSaving} 
+                        className="w-full sm:w-auto px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:bg-slate-300 transition-all"
                       >
-                        {isSaving ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
+                        {isSaving ? 'Đang xác thực...' : 'Cập nhật mật khẩu'}
                       </button>
                     </div>
                   </form>
                 )}
               </div>
             )}
-
-            {/* Các tab khác hiển thị trống hoặc dữ liệu mẫu */}
-            {activeTab !== 'profile' && (
-              <div className="text-center py-10 text-slate-400 italic">Tính năng {activeTab} đang được phát triển...</div>
-            )}
+            {activeTab !== 'profile' && <div className="text-center py-10 text-slate-400 italic">Tính năng {activeTab} đang được phát triển...</div>}
           </div>
         </div>
       </div>

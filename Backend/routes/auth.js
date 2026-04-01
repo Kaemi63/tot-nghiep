@@ -92,5 +92,30 @@ router.post('/login', async (req, res) => {
     } 
   });
 });
+// 3. Route Change Password 
+router.post('/change-password', async (req, res) => {
+  const { email, currentPassword, newPassword } = req.body;
 
+  // 1. Thử đăng nhập bằng mật khẩu cũ để xác thực
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return res.status(401).json({ error: "Mật khẩu hiện tại không chính xác." });
+  }
+
+  // 2. Nếu mật khẩu cũ đúng, tiến hành cập nhật mật khẩu mới
+  const { error: updateError } = await supabase.auth.admin.updateUserById(
+    signInData.user.id,
+    { password: newPassword }
+  );
+
+  if (updateError) {
+    return res.status(500).json({ error: "Không thể cập nhật mật khẩu mới." });
+  }
+
+  res.status(200).json({ message: "Đổi mật khẩu thành công!" });
+});
 module.exports = router;
