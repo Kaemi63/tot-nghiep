@@ -1,5 +1,5 @@
 import React from 'react';
-import { supabase } from '../lib/supabaseClient'; // Đảm bảo đường dẫn này đúng với file client ở frontend
+import { supabase } from '../lib/supabaseClient';
 import Picture from '../components/Login/Picture';
 import LoginHeader from '../components/Login/LoginHeader';
 import FormLogin from '../components/Login/FormLogin';
@@ -9,12 +9,10 @@ const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
   
   const handleLoginSubmit = async (data) => {
     try {
-      // 1. Gọi API Login ở Backend (server.js)
+      // 1. Gọi API Login ở Backend
       const response = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           identifier: data.identifier, 
           password: data.password
@@ -24,29 +22,45 @@ const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
       const result = await response.json();
 
       if (response.ok) {
-        
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: result.session.access_token,
-          refresh_token: result.session.refresh_token
-        });
+      // 1. Thiết lập session cho Supabase Client ở Frontend
+      await supabase.auth.setSession({
+        access_token: result.session.access_token,
+        refresh_token: result.session.refresh_token
+      });
 
-        if (sessionError) {
-          alert("Lỗi thiết lập phiên đăng nhập: " + sessionError.message);
-          return;
+      // 2. TRUY VẤN ROLE TRỰC TIẾP TỪ SUPABASE (Bỏ qua Backend)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', result.user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Lỗi lấy role:", profileError);
+      }
+
+      // 3. Gộp role vào object user trước khi gửi cho App.jsx
+      const userWithRole = { ...result.user, role: profile?.role || 'user' };
+      
+      // Lưu vào localStorage để dùng cho các trang khác
+      localStorage.setItem('fsa_user', JSON.stringify(userWithRole));
+
+      if (result.user && result.user.role) {
+        localStorage.setItem('fsa_user_role', result.user.role);
+        localStorage.setItem('fsa_user_name', result.user.fullname);
         }
 
-        alert("Đăng nhập thành công!");
+        alert(`Chào mừng ${result.user.fullname || 'bạn'} quay trở lại!`);
         
-        // Chuyển hướng hoặc thực hiện logic sau login
         if (onLoginSuccess) {
-          onLoginSuccess(result.user);
+        onLoginSuccess(userWithRole); // Truyền object đã có role sang App.jsx
         }
       } else {
         alert("Lỗi: " + (result.error || "Sai thông tin đăng nhập"));
       }
     } catch (err) {
       console.error("Lỗi kết nối:", err);
-      alert("Không thể kết nối đến Server Backend. Hãy chắc chắn Server đang chạy ở cổng 3001!");
+      alert("Không thể kết nối đến Server Backend!");
     }
   };
 
