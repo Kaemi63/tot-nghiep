@@ -10,6 +10,11 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 
+const adminRoutes = require('./routes/adminRoutes');
+app.use(cors());
+app.use(express.json());
+app.use('/api/admin', adminRoutes);
+
 //API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 app.post('/api/chat', async (req, res) => {
