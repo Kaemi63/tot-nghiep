@@ -3,31 +3,50 @@ import MainPage from './pages/Main';
 import Login from './pages/Login';      
 import Register from './pages/Register'; 
 import ChatPage from './pages/ChatPage'; 
-import UserManagement from './pages/admin/UserManagement'; // Đảm bảo đã import trang Admin
+import UserManagement from '../src/pages/Admin/UserManagement.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  // Thêm state để quản lý thông tin user nếu cần
+  const [user, setUser] = useState(null);
 
   const handleGoToLogin = () => setCurrentPage('login');
   const handleGoToRegister = () => setCurrentPage('register');
   const handleGoToHome = () => setCurrentPage('home');
 
-  // SỬA LẠI HÀM NÀY:
-  const handleLoginSuccess = (user) => {
-    // 1. Kiểm tra role của user trả về từ Backend
-    if (user && user.role === 'admin') {
-      setCurrentPage('admin'); // Chuyển đến trang admin
+  // Hàm xử lý sau khi Login thành công
+  const handleLoginSuccess = (userData) => {
+    setUser(userData); // Lưu thông tin user vào state
+    
+    // Kiểm tra role để phân luồng
+    if (userData && userData.role === 'admin') {
+      setCurrentPage('admin');
     } else {
-      setCurrentPage('chat');  // Chuyển đến trang chat cho user thường
+      setCurrentPage('chat');
     }
+  };
+
+  // Hàm xử lý Đăng xuất
+  const handleLogout = () => {
+    // 1. Xóa dữ liệu local
+    localStorage.removeItem('fsa_user');
+    localStorage.removeItem('fsa_token');
+    
+    // 2. Reset state
+    setUser(null);
+    setCurrentPage('home');
+    
+    console.log("Đã đăng xuất và chuyển về Home");
   };
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Trang chủ */}
       {currentPage === 'home' && (
         <MainPage onNavigateToLogin={handleGoToLogin} onNavigateToRegister={handleGoToRegister} />
       )}
       
+      {/* Trang Login */}
       {currentPage === 'login' && (
         <Login 
           onBack={handleGoToHome} 
@@ -36,18 +55,19 @@ function App() {
         />
       )}
 
+      {/* Trang Đăng ký */}
       {currentPage === 'register' && (
         <Register onBack={handleGoToHome} onNavigateToLogin={handleGoToLogin} />
       )}
 
-      {/* Trang Chat của User */}
+      {/* Trang Chat (User thường) */}
       {currentPage === 'chat' && (
-        <ChatPage />
+        <ChatPage onLogout={handleLogout} />
       )}
 
-      {/* THÊM ĐIỀU KIỆN NÀY ĐỂ HIỂN THỊ TRANG ADMIN */}
+      {/* Trang Quản lý (Admin) */}
       {currentPage === 'admin' && (
-        <UserManagement />
+        <UserManagement onLogout={handleLogout} />
       )}
     </div>
   );
