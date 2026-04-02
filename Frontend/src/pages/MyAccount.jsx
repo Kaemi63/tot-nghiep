@@ -40,7 +40,6 @@ useEffect(() => {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
-          // THÊM DÒNG NÀY: Gửi token để vượt qua Middleware protect
           'Authorization': `Bearer ${session.access_token}` 
         },
       });
@@ -83,7 +82,9 @@ useEffect(() => {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('http://localhost:3001/api/auth/update-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${session?.access_token}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}` },
         body: JSON.stringify({
           id: user.id,
           fullname: editData.fullname,
@@ -138,7 +139,10 @@ useEffect(() => {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('http://localhost:3001/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${session?.access_token}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}` 
+        },
         body: JSON.stringify({
           id: user.id,
           currentPassword: passwordData.current, // Gửi pass cũ để backend kiểm tra nếu cần
