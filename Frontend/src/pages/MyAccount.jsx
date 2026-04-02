@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
-import toast from 'react-hot-toast';
 
 // Import các components đã tách
 import AccountTabs from '../components/MyAccount/AccountTabs';
@@ -25,40 +25,54 @@ const MyAccount = () => {
 
   const genderMapToView = { 'male': 'Nam', 'female': 'Nữ', 'other': 'Khác' };
   const genderMapToDB = { 'Nam': 'male', 'Nữ': 'female', 'Khác': 'other' };
-  
+
+  // 1. SỬA useEffect: Vẫn dùng session của supabase để lấy ID, nhưng lấy data bằng Backend
   useEffect(() => {
     const fetchUserData = async () => {
-      const loadDataToast = toast.loading('Đang tải hồ sơ...');
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (data) {
-            setUser(data);
-            setEditData({ ...data, gender: genderMapToView[data.gender] || 'Khác' });
-            toast.dismiss(loadDataToast);
-          }
-          if (error) throw error;
+        if (!session) {
+          setLoading(false);
+          return;
         }
+        
+        // Gọi backend của bạn để lấy profile (không lấy trực tiếp từ supabase nữa)
+        const response = await fetch(`http://localhost:3001/api/auth/profile/${session.user.id}`);
+        const profile = await response.json();
+          
+        if (!response.ok) throw new Error(profile.error);
+        
+        // Áp dụng genderMapToView để chuyển 'male' thành 'Nam' khi hiển thị trên Form
+        const mappedProfile = {
+          ...profile,
+          gender: genderMapToView[profile.gender] || profile.gender
+        };
+
+        setUser(mappedProfile);
+        setEditData(mappedProfile);
       } catch (error) {
-        toast.error("Không thể tải dữ liệu!", { id: loadDataToast });
+        toast.error('Lỗi khi tải thông tin tài khoản');
       } finally {
         setLoading(false);
       }
     };
+    
     fetchUserData();
   }, []);
 
+  // 2. SỬA hàm cập nhật thông tin qua Backend
+// 1. Hàm cập nhật thông tin cá nhân
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
-    const savingToast = toast.loading('Đang đồng bộ thông tin...');
+    
+    // Kiểm tra nhanh trước khi gửi (Client-side validation)
+    if (!editData.fullname.trim()) {
+      return toast.error("Họ tên không được để trống");
+    }
 
+    setIsSaving(true);
+    const loadingToast = toast.loading('Đang lưu thay đổi...');
+    
     try {
       const response = await fetch('http://localhost:3001/api/auth/update-profile', {
         method: 'POST',
@@ -68,52 +82,80 @@ const MyAccount = () => {
           fullname: editData.fullname,
           phone: editData.phone,
           date_of_birth: editData.date_of_birth,
-          gender: genderMapToDB[editData.gender] || 'other'
+          gender: genderMapToDB[editData.gender] || editData.gender,
         }),
       });
-
+      
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-
-      // Cập nhật lại user state để Header (Avatar/Name) thay đổi theo ngay lập tức
-      setUser({ ...editData, gender: genderMapToDB[editData.gender] });
-      toast.success('Hồ sơ của bạn đã được cập nhật!', { id: savingToast });
-    } catch (error) {
-      toast.error('Lỗi: ' + error.message, { id: savingToast });
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Lỗi khi cập nhật hồ sơ');
+      }
+      
+      // Thành công
+      toast.success('Đã lưu thông tin cá nhân!', { id: loadingToast });
+      setUser(editData);
+    } catch (err) {
+      // Thất bại
+      toast.error(err.message, { id: loadingToast });
     } finally {
       setIsSaving(false);
     }
   };
 
+  // 2. Hàm đổi mật khẩu với đầy đủ các trường hợp báo lỗi
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+
+    // --- CÁC TRƯỜNG HỢP KIỂM TRA LỖI (VALIDATION) ---
+    
+    // Kiểm tra độ dài mật khẩu (VD: ít nhất 6 ký tự theo chuẩn Supabase)
+    if (passwordData.newPass.length < 6) {
+      return toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
+    }
+
+    // Kiểm tra mật khẩu mới và xác nhận mật khẩu
     if (passwordData.newPass !== passwordData.confirm) {
-      toast.error('Mật khẩu xác nhận không khớp!');
-      return;
+      return toast.error("Mật khẩu xác nhận không khớp với mật khẩu mới");
+    }
+
+    // Kiểm tra nếu mật khẩu mới trùng mật khẩu cũ (tùy chọn)
+    if (passwordData.current === passwordData.newPass) {
+      return toast.error("Mật khẩu mới không được trùng với mật khẩu hiện tại");
     }
 
     setIsSaving(true);
-    const pwdToast = toast.loading('Đang xác thực bảo mật...');
+    const loadingToast = toast.loading('Đang xử lý đổi mật khẩu...');
 
     try {
       const response = await fetch('http://localhost:3001/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: user.email,
-          currentPassword: passwordData.current,
-          newPassword: passwordData.newPass
+          id: user.id,
+          currentPassword: passwordData.current, // Gửi pass cũ để backend kiểm tra nếu cần
+          password: passwordData.newPass,
         }),
       });
-
+      
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
 
-      toast.success('Mật khẩu đã được thay đổi!', { id: pwdToast });
+      if (!response.ok) {
+        // Đây là nơi bắt lỗi "Sai mật khẩu hiện tại" từ Backend trả về
+        if (result.error?.includes('invalid_credentials') || result.error?.includes('incorrect')) {
+           throw new Error("Mật khẩu hiện tại không chính xác");
+        }
+        throw new Error(result.error || 'Lỗi khi đổi mật khẩu');
+      }
+      
+      // Thành công
+      toast.success('Đổi mật khẩu thành công!', { id: loadingToast });
+      // Reset form sau khi thành công
       setPasswordData({ current: '', newPass: '', confirm: '' });
-      setProfileSubTab('edit');
-    } catch (error) {
-      toast.error(error.message, { id: pwdToast });
+      
+    } catch (err) {
+      // Hiện lỗi cụ thể (Sai mật khẩu, ko đủ ký tự từ server,...)
+      toast.error(err.message, { id: loadingToast });
     } finally {
       setIsSaving(false);
     }
@@ -123,6 +165,7 @@ const MyAccount = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50 py-12 px-4 sm:px-6 font-sans">
+      <Toaster position="top-center" reverseOrder={false} />
       <div className="max-w-5xl mx-auto"> 
         <div className="flex items-center gap-5 mb-10 animate-in fade-in slide-in-from-left-4 duration-700">
           <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white shadow-md ring-1 ring-slate-200">
