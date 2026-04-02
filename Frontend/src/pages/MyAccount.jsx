@@ -27,38 +27,44 @@ const MyAccount = () => {
   const genderMapToDB = { 'Nam': 'male', 'Nữ': 'female', 'Khác': 'other' };
 
   // 1. SỬA useEffect: Vẫn dùng session của supabase để lấy ID, nhưng lấy data bằng Backend
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setLoading(false);
-          return;
-        }
-        
-        // Gọi backend của bạn để lấy profile (không lấy trực tiếp từ supabase nữa)
-        const response = await fetch(`http://localhost:3001/api/auth/profile/${session.user.id}`);
-        const profile = await response.json();
-          
-        if (!response.ok) throw new Error(profile.error);
-        
-        // Áp dụng genderMapToView để chuyển 'male' thành 'Nam' khi hiển thị trên Form
-        const mappedProfile = {
-          ...profile,
-          gender: genderMapToView[profile.gender] || profile.gender
-        };
-
-        setUser(mappedProfile);
-        setEditData(mappedProfile);
-      } catch (error) {
-        toast.error('Lỗi khi tải thông tin tài khoản');
-      } finally {
+useEffect(() => {
+  const fetchUserData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         setLoading(false);
+        return;
       }
-    };
-    
-    fetchUserData();
-  }, []);
+      
+      const response = await fetch(`http://localhost:3001/api/auth/profile/${session.user.id}`, {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          // THÊM DÒNG NÀY: Gửi token để vượt qua Middleware protect
+          'Authorization': `Bearer ${session.access_token}` 
+        },
+      });
+
+      const profile = await response.json();
+      if (!response.ok) throw new Error(profile.error);
+      
+      const mappedProfile = {
+        ...profile,
+        gender: genderMapToView[profile.gender] || profile.gender
+      };
+
+      setUser(mappedProfile);
+      setEditData(mappedProfile);
+    } catch (error) {
+      console.error(error);
+      toast.error('Lỗi khi tải thông tin tài khoản');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchUserData();
+}, []);
 
   // 2. SỬA hàm cập nhật thông tin qua Backend
 // 1. Hàm cập nhật thông tin cá nhân
@@ -74,9 +80,10 @@ const MyAccount = () => {
     const loadingToast = toast.loading('Đang lưu thay đổi...');
     
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('http://localhost:3001/api/auth/update-profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${session?.access_token}` },
         body: JSON.stringify({
           id: user.id,
           fullname: editData.fullname,
@@ -128,9 +135,10 @@ const MyAccount = () => {
     const loadingToast = toast.loading('Đang xử lý đổi mật khẩu...');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('http://localhost:3001/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${session?.access_token}` },
         body: JSON.stringify({
           id: user.id,
           currentPassword: passwordData.current, // Gửi pass cũ để backend kiểm tra nếu cần
