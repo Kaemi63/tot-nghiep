@@ -115,8 +115,6 @@ useEffect(() => {
   const handlePasswordChange = async (e) => {
     e.preventDefault();
 
-    // --- CÁC TRƯỜNG HỢP KIỂM TRA LỖI (VALIDATION) ---
-    
     // Kiểm tra độ dài mật khẩu (VD: ít nhất 6 ký tự theo chuẩn Supabase)
     if (passwordData.newPass.length < 6) {
       return toast.error("Mật khẩu mới phải có ít nhất 6 ký tự");
@@ -145,7 +143,7 @@ useEffect(() => {
         },
         body: JSON.stringify({
           id: user.id,
-          currentPassword: passwordData.current, // Gửi pass cũ để backend kiểm tra nếu cần
+          currentPassword: passwordData.current,
           password: passwordData.newPass,
         }),
       });
