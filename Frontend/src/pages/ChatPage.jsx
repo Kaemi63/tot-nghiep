@@ -9,6 +9,7 @@ import CartPage from './CartPage';
 import CheckoutPage from './CheckoutPage';
 import OrderHistoryPage from './OrderHistoryPage';
 import WishlistPage from './WishlistPage';
+import { supabase } from '../lib/supabaseClient';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
@@ -82,12 +83,69 @@ const ChatPage = () => {
   });
 };
 
-  const addToWishlist = (product) => {
-    setWishlistItems((prev) => {
-      if (prev.some((item) => item.id === product.id)) return prev;
-      return [...prev, product];
+const addToWishlist = async (product) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Vui lòng đăng nhập!");
+      return;
+    }
+
+    const userId = session.user.id;
+
+    // 1. Kiểm tra xem sản phẩm đã có trong wishlist chưa
+    // Lưu ý: Bạn cần fetch wishlist từ backend hoặc quản lý wishlistItems trong state của ChatPage
+    const responseCheck = await fetch(`http://localhost:3001/api/wishlist/${userId}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` }
     });
-  };
+    const currentWishlist = await responseCheck.json();
+
+    // Tìm xem sản phẩm hiện tại có trong danh sách chưa (so khớp product_id)
+    const existingItem = currentWishlist.find(item => 
+      (item.products?.id === product.id) || (item.product_id === product.id)
+    );
+
+    if (existingItem) {
+      // 2. NẾU ĐÃ CÓ -> THỰC HIỆN XÓA (REMOVE)
+      const removeResponse = await fetch(`http://localhost:3001/api/wishlist/remove/${existingItem.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+
+      if (removeResponse.ok) {
+        toast.success("Đã xóa khỏi danh sách yêu thích");
+        // Cập nhật lại state nếu bạn có dùng wishlistItems để UI đổi màu icon ngay lập tức
+        setWishlistItems(prev => prev.filter(item => item.id !== existingItem.id));
+      }
+    } else {
+      // 3. NẾU CHƯA CÓ -> THỰC HIỆN THÊM (ADD)
+      const addResponse = await fetch('http://localhost:3001/api/wishlist/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          product_id: product.id
+        })
+      });
+
+      if (addResponse.ok) {
+        const result = await addResponse.json();
+        toast.success("Đã thêm vào danh sách yêu thích");
+        // Cập nhật state
+        setWishlistItems(prev => [...prev, result.data[0]]);
+      } else {
+        const errorData = await addResponse.json();
+        toast.error(errorData.error || "Không thể thêm vào yêu thích");
+      }
+    }
+  } catch (error) {
+    console.error("Lỗi Wishlist Toggle:", error);
+    toast.error("Có lỗi xảy ra, vui lòng thử lại");
+  }
+};
 
   const updateCartQuantity = (productId, quantity) => {
     setCartItems((prev) => prev
@@ -136,7 +194,7 @@ const ChatPage = () => {
         {activeSection === 'cart' && <CartPage cartItems={cartItems} onQuantityChange={updateCartQuantity} onRemoveItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons} />}
         {activeSection === 'checkout' && <CheckoutPage cartItems={cartItems} subtotal={cartItems.reduce((acc, item) => acc + item.product.priceRaw * item.quantity, 0)} onPlaceOrder={placeOrder} onBack={openCart} />}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}
-        {activeSection === 'wishlist' && <WishlistPage items={wishlistItems} onAddToCart={(product) => { addToCart(product); setWishlistItems((prev) => prev.filter((item) => item.id !== product.id)); }} onRemove={(id) => setWishlistItems((prev) => prev.filter((item) => item.id !== id))} />}
+        {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}
       </main>
     </div>
