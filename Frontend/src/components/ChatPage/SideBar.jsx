@@ -8,14 +8,7 @@ const Sidebar = ({ onNewChat, onOpenStore, onOpenAccount, onOpenCart, onOpenOrde
   // 1. Thêm State để lưu thông tin User
   const [userProfile, setUserProfile] = useState(null);
 
-  const categories = [
-    { id: 'nam', label: 'Thời trang Nam' },
-    { id: 'nu', label: 'Thời trang Nữ' },
-    { id: 'phukien', label: 'Phụ kiện' },
-    { id: 'giay', label: 'Giày dép' },
-    { id: 'aokhoac', label: 'Áo khoác' },
-    { id: 'quanjeans', label: 'Quần Jeans' },
-  ];
+
 
   // 2. Fetch dữ liệu User khi Sidebar được render
   useEffect(() => {
@@ -79,16 +72,6 @@ const Sidebar = ({ onNewChat, onOpenStore, onOpenAccount, onOpenCart, onOpenOrde
           </button>
         </nav>
 
-        {showCategories && !collapsed && (
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <h3 className="text-xs uppercase tracking-wider text-slate-500 mb-2">Danh mục thời trang</h3>
-            <div className="space-y-2">
-              {categories.map((cat) => (
-                <button key={cat.id} onClick={() => onCategorySelect(cat.id)} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">{cat.label}</button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Middle Sidebar */}

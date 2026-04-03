@@ -1,0 +1,45 @@
+import React from 'react';
+import { fmt } from '../../shared/ShopUI';
+
+const OrderSummaryPanel = ({ cartItems, subtotal }) => (
+  <aside className="rounded-2xl border border-slate-100 bg-white shadow-sm p-6 sticky top-4">
+    <h3 className="font-extrabold text-slate-800 mb-4">Đơn hàng ({cartItems.length} sản phẩm)</h3>
+    <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+      {cartItems.map((item) => {
+        const { product, quantity } = item;
+        const price = product.priceRaw ?? product.base_price ?? 0;
+        const image = product.image || product.thumbnail_url || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=200&q=80';
+        return (
+          <div key={product.id} className="flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+              <img src={image} alt={product.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">{quantity}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-700 truncate">{product.name}</p>
+              {product.brand && <p className="text-[11px] text-slate-400">{product.brand}</p>}
+            </div>
+            <p className="text-xs font-bold text-slate-800 flex-shrink-0">{fmt(price * quantity)}</p>
+          </div>
+        );
+      })}
+    </div>
+    <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-sm">
+      <div className="flex justify-between text-slate-600"><span>Tạm tính</span><span className="font-semibold">{fmt(subtotal)}</span></div>
+      <div className="flex justify-between text-slate-600">
+        <span>Phí vận chuyển</span>
+        <span className={`font-semibold ${subtotal >= 500000 ? 'text-emerald-600' : ''}`}>{subtotal >= 500000 ? 'Miễn phí' : fmt(35000)}</span>
+      </div>
+      <div className="flex justify-between font-extrabold text-slate-800 text-base pt-2 border-t border-slate-100">
+        <span>Tổng cộng</span>
+        <span className="text-indigo-600">{fmt(subtotal >= 500000 ? subtotal : subtotal + 35000)}</span>
+      </div>
+    </div>
+    <div className="mt-4 flex items-center gap-2 bg-emerald-50 rounded-xl p-3">
+      <span>🔒</span>
+      <p className="text-xs text-emerald-700 font-medium">Thanh toán an toàn & bảo mật SSL</p>
+    </div>
+  </aside>
+);
+
+export default OrderSummaryPanel;

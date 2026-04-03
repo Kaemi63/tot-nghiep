@@ -5,11 +5,12 @@ import StoreHome from './StoreHome';
 import ProductListing from './ProductListing';
 import ProductDetail from './ProductDetail';
 import MyAccount from './MyAccount';
-import CartPage from './CartPage';
-import CheckoutPage from './CheckoutPage';
-import OrderHistoryPage from './OrderHistoryPage';
-import WishlistPage from './WishlistPage';
+import CartPage from './Cart';
+import CheckoutPage from './Checkout';
+import OrderHistoryPage from './OrderHistory';
+import WishlistPage from './Wishlist';
 import { supabase } from '../lib/supabaseClient';
+import toast from 'react-hot-toast';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
