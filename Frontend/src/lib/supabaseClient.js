@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+require('dotenv').config(); 
 
-const supabaseUrl = 'https://bfyqmoyimyjwprvtzvmo.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmeXFtb3lpbXlqd3BydnR6dm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4Mjg3NjYsImV4cCI6MjA4OTQwNDc2Nn0.gN_cxoGv-02j19qs16Wo5DEWdslWdhnizZTrtapNvBk';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
