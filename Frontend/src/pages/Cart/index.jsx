@@ -13,13 +13,16 @@ const CartPage = ({ onApplyCoupon, onCheckout, availableCoupons = [] }) => {
   const [couponError, setCouponError] = useState('');
 
   // 2. Tính toán tổng tiền dựa trên dữ liệu thực (unit_price từ DB)
-  const subtotal = useMemo(() => {
+    const subtotal = useMemo(() => {
     return cartItems.reduce((acc, item) => {
-      // Backend trả về unit_price cho mỗi item trong giỏ
-      const price = item.unit_price || 0;
-      return acc + price * item.quantity;
+      return acc + (item.unit_price * item.quantity);
     }, 0);
   }, [cartItems]);
+
+// Tính tổng số lượng thực tế (Total Quantity)
+const totalQuantity = useMemo(() => {
+  return cartItems.reduce((acc, item) => acc + item.quantity, 0);
+}, [cartItems]);
 
   const discount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -80,8 +83,8 @@ const CartPage = ({ onApplyCoupon, onCheckout, availableCoupons = [] }) => {
             <CartItem 
               key={item.id} 
               item={item} 
-              onQuantityChange={updateCartQuantity} // Hàm từ useCart
-              onRemove={removeCartItem}           // Hàm từ useCart
+              onQuantityChange={updateCartQuantity}
+              onRemove={removeCartItem}  
             />
           ))}
         </div>
@@ -94,8 +97,8 @@ const CartPage = ({ onApplyCoupon, onCheckout, availableCoupons = [] }) => {
           couponCode={couponCode}
           setCouponCode={setCouponCode}
           onApplyCoupon={handleApply}
-          onCheckout={() => onCheckout(cartItems, total)} // Gửi dữ liệu thực đi checkout
-          itemCount={cartItems.length}
+          onCheckout={() => onCheckout(cartItems, total)} 
+          itemCount={totalQuantity}
           couponError={couponError}
         />
       </div>

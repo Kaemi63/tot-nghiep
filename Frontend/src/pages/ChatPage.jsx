@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Sidebar from '../components/ChatPage/SideBar';
 import ChatWindow from '../components/ChatPage/ChatWindow';
 import StoreHome from './StoreHome';
@@ -155,7 +155,13 @@ const addToWishlist = async (product) => {
     setSearchQuery(query);
     setActiveSection('productListing');
   };
-
+  const subtotal = React.useMemo(() => {
+    console.log("Re-calculating subtotal...", cartItems);
+    return cartItems.reduce((acc, item) => {
+      const price = item.unit_price ?? item.products?.base_price ?? 0;
+      return acc + (price * item.quantity);
+    }, 0);
+  }, [cartItems]);
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden">
       <Sidebar
@@ -174,8 +180,8 @@ const addToWishlist = async (product) => {
         {activeSection === 'storeHome' && <StoreHome onFilterCategory={openProductListing} onOpenListing={openProductListing} onSearch={viewSearchResults} onSelectProduct={openProductDetail} />}
         {activeSection === 'productListing' && <ProductListing categorySlug={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
-        {activeSection === 'cart' && <CartPage cartItems={cartItems} onQuantityChange={updateCartQuantity} onRemoveItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons} />}
-        {activeSection === 'checkout' && <CheckoutPage cartItems={cartItems} subtotal={cartItems.reduce((acc, item) => acc + item.product.priceRaw * item.quantity, 0)} onPlaceOrder={placeOrder} onBack={openCart} />}
+        {activeSection === 'cart' && <CartPage cartItems={cartItems} onQuantityChange={updateCartQuantity} onRemoveItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons} subtotal={subtotal} />}
+        {activeSection === 'checkout' && <CheckoutPage cartItems={[...cartItems]} subtotal={subtotal} onPlaceOrder={placeOrder} onBack={openCart} />}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}
         {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}

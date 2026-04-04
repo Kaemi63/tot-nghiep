@@ -6,7 +6,8 @@ import OrderSummaryPanel from '../../components/Checkout/OrderSummaryPanel.jsx';
 const CheckoutPage = ({ cartItems, subtotal, onPlaceOrder, onBack }) => {
   const [data, setData] = useState({ fullname: '', phone: '', email: '', address: '', note: '', payment: 'COD', shipping: 'standard' });
   const [success, setSuccess] = useState(false);
-
+  const shippingFee = subtotal >= 500000 ? 0 : (data.shipping === 'express' ? 35000 : 20000);
+  const grandTotal = subtotal + shippingFee;    
   if (!cartItems.length) return <PageShell><EmptyState icon="🛒" title="Giỏ hàng trống" desc="Không có sản phẩm để thanh toán." action={{ label: 'Quay lại mua sắm', onClick: onBack }} /></PageShell>;
 
   if (success) return (
@@ -22,8 +23,12 @@ const CheckoutPage = ({ cartItems, subtotal, onPlaceOrder, onBack }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const order = { id: `ORD-${Date.now()}`, date: new Date().toLocaleDateString('vi-VN'), status: 'Chờ xác nhận', total: subtotal, customer: data, products: cartItems };
-    onPlaceOrder && onPlaceOrder(order);
+    onPlaceOrder && onPlaceOrder({
+      id: `ORD-${Date.now()}`,
+      total: grandTotal, 
+      customer: data,
+      products: cartItems 
+    });
     setSuccess(true);
   };
 
@@ -35,7 +40,7 @@ const CheckoutPage = ({ cartItems, subtotal, onPlaceOrder, onBack }) => {
       <h1 className="text-3xl font-extrabold text-slate-800 mb-6">Thanh toán</h1>
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <CheckoutForm data={data} setData={setData} onSubmit={handleSubmit} />
-        <OrderSummaryPanel cartItems={cartItems} subtotal={subtotal} />
+        <OrderSummaryPanel cartItems={cartItems} subtotal={subtotal} shippingMethod={data.shipping} />
       </div>
     </PageShell>
   );

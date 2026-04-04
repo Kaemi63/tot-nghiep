@@ -80,16 +80,22 @@ export const useCart = () => {
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  const updateCartQuantity = async (cartItemId, newQty) => {
+const updateCartQuantity = async (cartItemId, newQty) => {
   if (newQty < 1) return;
   const previousItems = [...cartItems];
-  setCartItems(prevItems => 
-    prevItems.map(item => 
+  setCartItems(prevItems => {
+    const updatedItems = prevItems.map(item =>
       item.id === cartItemId ? { ...item, quantity: newQty } : item
-    )
-  );
+    );
+    return [...updatedItems]; 
+  });
+
+  // 4. Lấy session để gọi API
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
+  if (!session) {
+    toast.error("Vui lòng đăng nhập lại");
+    return;
+  }
 
   try {
     const res = await fetch(`http://localhost:3001/api/cart/update`, {
@@ -105,12 +111,15 @@ export const useCart = () => {
     });
 
     if (!res.ok) {
+      const errorData = await res.json();
       setCartItems(previousItems);
-      toast.error("Không thể cập nhật số lượng");
+      toast.error(errorData.error || "Không thể cập nhật số lượng");
+    } else {
     }
   } catch (err) {
     setCartItems(previousItems);
     console.error("Update error:", err);
+    toast.error("Lỗi kết nối server");
   }
 };
   return { cartItems, loading, addToCart, removeCartItem, refreshCart: fetchCart, updateCartQuantity };
