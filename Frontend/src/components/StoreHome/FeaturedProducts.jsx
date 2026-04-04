@@ -1,6 +1,6 @@
 import React from 'react';
 import ProductCard from './ProductCard';
-import { useProducts } from '../../hooks/useProducts';
+import { useProducts } from '../../services/useProducts';
 
 /** Skeleton placeholder while loading */
 const SkeletonCard = () => (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient'; // Điều chỉnh đường dẫn file supabase của bạn
+import { supabase } from '../../services/supabaseClient'; 
 import toast, { Toaster } from 'react-hot-toast';
-import WishlistCard from './WishlistCard';
+import WishlistCard from '../../components/Wishlist/WishlistCard.jsx'; 
 
 const WishlistPage = ({ onAddToCart }) => {
   const [items, setItems] = useState([]);

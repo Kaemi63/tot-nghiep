@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { PageShell, EmptyState } from '../../shared/ShopUI';
+import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
 import ListingCard from './ListingCard';
 import ListingFilters from './ListingFilters';
 import ListingPagination from './ListingPagination';
-import { useAllProducts } from '../../hooks/useProducts';
+import { useAllProducts } from '../../services/useProducts';
 
 const PER_PAGE = 9;
 

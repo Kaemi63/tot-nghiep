@@ -1,4 +1,3 @@
-// components/ProductDetail/ProductActions.jsx
 import React from 'react';
 
 const ProductActions = ({ product, onAddToCart, onAddToWishlist }) => {

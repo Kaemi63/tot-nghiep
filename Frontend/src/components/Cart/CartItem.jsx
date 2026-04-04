@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt } from '../../shared/ShopUI';
+import { fmt } from '../../utils/format.js';
 
 const CartItem = ({ item, onQuantityChange, onRemove }) => {
   const { product, quantity } = item;

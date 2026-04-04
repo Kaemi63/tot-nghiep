@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart2, Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, ChevronDown, Menu } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase } from '../../services/supabaseClient.js';
 
 const Sidebar = ({ onNewChat, onOpenStore, onOpenAccount, onOpenCart, onOpenOrderHistory, onOpenWishlist, isStore, showCategories, onCategorySelect }) => {
   const [collapsed, setCollapsed] = useState(false);

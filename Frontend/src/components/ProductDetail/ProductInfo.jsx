@@ -5,7 +5,6 @@ const ProductInfo = ({ product }) => {
     style: 'currency', currency: 'VND' 
   }).format(product.base_price || 0);
 
-  // Lấy danh sách Size và Màu duy nhất từ các biến thể
   const sizes = product.product_variants ? [...new Set(product.product_variants.map(v => v.size).filter(Boolean))] : [];
   const colors = product.product_variants ? [...new Set(product.product_variants.map(v => v.color).filter(Boolean))] : [];
 

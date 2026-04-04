@@ -9,7 +9,7 @@ import CartPage from './Cart';
 import CheckoutPage from './Checkout';
 import OrderHistoryPage from './OrderHistory';
 import WishlistPage from './Wishlist';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 
 const ChatPage = () => {

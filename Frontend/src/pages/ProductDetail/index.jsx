@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Stars, fmt } from '../../shared/ShopUI';
+import { fmt } from '../../utils/format.js';
+import { Stars } from '../../components/ShopUI/ShopUI.jsx';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80';
 

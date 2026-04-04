@@ -1,5 +1,5 @@
 import React from 'react';
-import { useBrands } from '../../hooks/useBrands';
+import { useBrands } from '../../services/useBrands';
 
 /** Returns a consistent accent colour string for a brand index */
 const BRAND_COLORS = [

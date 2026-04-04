@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from './supabaseClient';
 
 /**
  * Fetch featured products with their category and brand info.
@@ -21,12 +21,16 @@ export function useProducts(limit = 6) {
         name,
         slug,
         short_description,
+        description,
         thumbnail_url,
         base_price,
         is_featured,
         status,
-        categories ( id, name, slug ),
-        brands ( id, name, slug, logo_url )
+        brands (id, name, slug, logo_url),
+        categories!inner (id, name, slug),
+        product_images (id, image_url, sort_order),
+        product_specifications (id, spec_name, spec_value),
+        product_variants (id, variant_name, sku, price, stock_quantity, color, size)
       `)
       .eq('status', 'active')
       .eq('is_featured', true)

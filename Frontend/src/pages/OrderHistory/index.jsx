@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PageShell, EmptyState } from '../../shared/ShopUI';
+import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
 import OrderCard from './OrderCard';
 
 const OrderHistoryPage = ({ orders = [] }) => {

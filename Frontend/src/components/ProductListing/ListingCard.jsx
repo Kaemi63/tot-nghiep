@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stars } from '../../shared/ShopUI';
+import { Stars } from '../ShopUI/ShopUI.jsx';
 
 const fmt = (num) => typeof num === 'number' ? num.toLocaleString('vi-VN') + '₫' : num;
 

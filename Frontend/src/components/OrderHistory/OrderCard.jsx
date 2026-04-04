@@ -1,5 +1,6 @@
 import React from 'react';
-import { StatusBadge, fmt } from '../../shared/ShopUI';
+import { fmt } from '../../utils/format.js';
+import { StatusBadge } from '../ShopUI/ShopUI.jsx';
 
 const OrderCard = ({ order, isSelected, onSelect, onClose }) => (
   <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${isSelected ? 'border-indigo-300 shadow-md' : 'border-slate-100 bg-white shadow-sm hover:shadow-md'}`}>

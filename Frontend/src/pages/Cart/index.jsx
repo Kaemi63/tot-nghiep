@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { PageShell, EmptyState } from '../../shared/ShopUI';
-import CartItem from './CartItem';
-import CartSummary from './CartSummary';
+import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
+import CartItem from '../../components/Cart/CartItem';
+import CartSummary from '../../components/Cart/CartSummary';
 
 const CartPage = ({ cartItems, onQuantityChange, onRemoveItem, onApplyCoupon, onCheckout, availableCoupons = [] }) => {
   const [couponCode, setCouponCode] = useState('');

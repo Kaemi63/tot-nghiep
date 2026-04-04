@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt } from '../../shared/ShopUI';
+import { fmt } from '../../utils/format.js';
 
 const CartSummary = ({ subtotal, discount, total, appliedCoupon, couponCode, setCouponCode, onApplyCoupon, onCheckout, itemCount }) => {
   const shippingFee = subtotal >= 500000 ? 0 : 35000;

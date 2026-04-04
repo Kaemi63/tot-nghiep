@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmt } from '../../shared/ShopUI';
+import { fmt } from '../../utils/format.js';
 
 const OrderSummaryPanel = ({ cartItems, subtotal }) => (
   <aside className="rounded-2xl border border-slate-100 bg-white shadow-sm p-6 sticky top-4">

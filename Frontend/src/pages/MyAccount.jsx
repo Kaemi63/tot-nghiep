@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 
 // Import các components đã tách
 import AccountTabs from '../components/MyAccount/AccountTabs';

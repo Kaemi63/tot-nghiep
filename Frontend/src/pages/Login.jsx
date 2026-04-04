@@ -1,5 +1,5 @@
 import React from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast'; // Thư viện thông báo xịn
 import Picture from '../components/Login/Picture';
 import LoginHeader from '../components/Login/LoginHeader';

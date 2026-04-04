@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Package, LayoutDashboard, Menu, LogOut, ChevronRight, ShoppingCart } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../services/supabaseClient';
 
 const AdminSidebar = ({ activePage, setActivePage, onLogout }) => {
   const [collapsed, setCollapsed] = useState(false);

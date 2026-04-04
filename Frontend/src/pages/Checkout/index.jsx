@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { PageShell, EmptyState } from '../../shared/ShopUI';
-import CheckoutForm from './CheckoutForm';
-import OrderSummaryPanel from './OrderSummaryPanel';
+import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
+import CheckoutForm from '../../components/Checkout/CheckoutForm.jsx';
+import OrderSummaryPanel from '../../components/Checkout/OrderSummaryPanel.jsx';
 
 const CheckoutPage = ({ cartItems, subtotal, onPlaceOrder, onBack }) => {
   const [data, setData] = useState({ fullname: '', phone: '', email: '', address: '', note: '', payment: 'COD', shipping: 'standard' });

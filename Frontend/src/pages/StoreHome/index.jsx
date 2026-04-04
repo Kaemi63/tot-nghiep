@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 
-import SearchBar from './SearchBar';
+import SearchBar from '../../components/StoreHome/SearchBar';
 
-import HeroSlider from './HeroSlider';
-import CategoryShowcase from './CategoryShowcase';
-import FlashSaleBanner from './FlashSaleBanner';
-import FeaturedProducts from './FeaturedProducts';
-import TopBrands from './TopBrands';
-import BlogSection from './BlogSection';
-import Testimonials from './Testimonials';
-import NewsletterCTA from './NewsletterCTA';
+import HeroSlider from '../../components/StoreHome/HeroSlider';
+import CategoryShowcase from '../../components/StoreHome/CategoryShowcase';
+import FlashSaleBanner from '../../components/StoreHome/FlashSaleBanner';
+import FeaturedProducts from '../../components/StoreHome/FeaturedProducts';
+import TopBrands from '../../components/StoreHome/TopBrands';
+import BlogSection from '../../components/StoreHome/BlogSection';
+import Testimonials from '../../components/StoreHome/Testimonials';
+import NewsletterCTA from '../../components/StoreHome/NewsletterCTA';
 
 const StoreHome = ({ onFilterCategory, onOpenListing, onSelectProduct, onAddToCart }) => {
   const [search, setSearch] = useState('');
