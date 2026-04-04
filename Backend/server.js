@@ -6,6 +6,7 @@ const supabase = require('./config/supabaseClient');
 const productRoutes = require('./routes/product');
 const adminRoutes = require('./routes/adminRoutes');
 const wishlistRoutes = require('./routes/wishlist');
+const cartRoutes = require('./routes/cart');
 
 require('dotenv').config();
 const app = express();
@@ -15,6 +16,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/cart', cartRoutes);
 
 //API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);

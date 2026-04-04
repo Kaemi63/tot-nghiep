@@ -17,7 +17,7 @@ const ProductDetail = ({ product, onBack, onAddToCart, onAddToWishlist }) => {
   const rating = product.rating ?? 4.8;
   const reviews = product.reviews || [];
 
-  const handleAddToCart = () => onAddToCart && onAddToCart({ ...product, qty });
+  const handleAddToCart = () => { if (onAddToCart) onAddToCart(product, qty); };
   const handleWishlist = () => { setWishlisted((w) => !w); onAddToWishlist && onAddToWishlist(product); };
 
   return (

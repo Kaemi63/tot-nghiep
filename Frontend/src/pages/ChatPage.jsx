@@ -11,6 +11,7 @@ import OrderHistoryPage from './OrderHistory';
 import WishlistPage from './Wishlist';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
+import { useCart } from '../hooks/useCart';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
@@ -18,11 +19,12 @@ const ChatPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [cartItems, setCartItems] = useState([]);
+  const { cartItems, addToCart, updateCartQuantity, removeCartItem } = useCart();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
   const [previousSection, setPreviousSection] = useState('storeHome');
+  
 
   const handleNewChat = () => {
     setActiveSection('chat');
@@ -73,16 +75,6 @@ const ChatPage = () => {
 
   const findCartItem = (productId) => cartItems.find((i) => i.product.id === productId);
 
-  const addToCart = (product) => {
-  setCartItems((prev) => {
-    const existing = prev.find((item) => item.product.id === product.id);
-    if (existing) {
-      return prev.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-    }
-    // Dùng base_price từ Backend
-    return [...prev, { product: { ...product, priceRaw: product.base_price || 0 }, quantity: 1 }];
-  });
-};
 
 const addToWishlist = async (product) => {
   try {
@@ -148,16 +140,6 @@ const addToWishlist = async (product) => {
   }
 };
 
-  const updateCartQuantity = (productId, quantity) => {
-    setCartItems((prev) => prev
-      .map((item) => (item.product.id === productId ? { ...item, quantity } : item))
-      .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const removeCartItem = (productId) => {
-    setCartItems((prev) => prev.filter((item) => item.product.id !== productId));
-  };
 
   const placeOrder = (order) => {
     setOrders((prev) => [...prev, order]);
