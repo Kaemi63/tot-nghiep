@@ -3,29 +3,15 @@ import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
 import CartItem from '../../components/Cart/CartItem';
 import CartSummary from '../../components/Cart/CartSummary';
 
-/**
- * CartPage hiện tại là một "Controlled Component"
- * Nó không tự quản lý state giỏ hàng mà nhận từ ChatPage thông qua props
- */
-const CartPage = ({ 
-  cartItems,            // Danh sách sản phẩm (từ useCart ở ChatPage)
-  loading,              // Trạng thái loading (từ useCart ở ChatPage)
-  updateCartQuantity,   // Hàm cập nhật số lượng (từ useCart ở ChatPage)
-  removeCartItem,       // Hàm xóa sản phẩm (từ useCart ở ChatPage)
-  onApplyCoupon,        // Hàm xử lý khi áp mã giảm giá
-  onCheckout,           // Hàm chuyển sang trang thanh toán
-  availableCoupons = [] // Danh sách mã giảm giá hợp lệ
-}) => {
-  // --- State nội bộ chỉ dùng cho giao diện nhập mã giảm giá ---
+
+const CartPage = ({ cartItems,loading,updateCartQuantity,removeCartItem,onApplyCoupon,onCheckout,availableCoupons = []}) => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState('');
 
   // 1. Tính tổng tiền tạm tính (Subtotal)
-  // useMemo giúp tính toán lại chỉ khi cartItems thay đổi
   const subtotal = useMemo(() => {
     return cartItems.reduce((acc, item) => {
-      // Ưu tiên dùng unit_price từ DB, nếu không có thì lấy giá gốc
       const price = item.unit_price || 0;
       return acc + (price * item.quantity);
     }, 0);
@@ -62,11 +48,9 @@ const CartPage = ({
     }
 
     setAppliedCoupon(coupon);
-    // Thông báo cho ChatPage biết coupon nào đã được áp dụng (nếu cần)
     if (onApplyCoupon) onApplyCoupon(coupon);
   };
 
-  // Trạng thái Đang tải (Loading)
   if (loading) {
     return (
       <PageShell>
@@ -77,7 +61,6 @@ const CartPage = ({
     );
   }
 
-  // Trạng thái Giỏ hàng trống
   if (!cartItems || cartItems.length === 0) {
     return (
       <PageShell>
@@ -110,8 +93,8 @@ const CartPage = ({
             <CartItem 
               key={item.id} 
               item={item} 
-              onQuantityChange={updateCartQuantity} // Gọi hàm từ prop
-              onRemove={removeCartItem}            // Gọi hàm từ prop
+              onQuantityChange={updateCartQuantity}
+              onRemove={removeCartItem}
             />
           ))}
         </div>
