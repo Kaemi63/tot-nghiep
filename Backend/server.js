@@ -8,6 +8,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const wishlistRoutes = require('./routes/wishlist');
 const cartRoutes = require('./routes/cart');
 
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 require('dotenv').config();
 const app = express();
 app.use(cors());

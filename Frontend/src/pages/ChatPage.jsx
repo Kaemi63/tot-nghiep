@@ -15,11 +15,11 @@ import { useCart } from '../hooks/useCart';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
-  const [activeSection, setActiveSection] = useState('chat'); // 'chat' | 'storeHome' | 'productListing' | 'productDetail' | 'myAccount' | 'cart' | 'checkout' | 'orderHistory' | 'wishlist'
+  const [activeSection, setActiveSection] = useState('chat');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const { cartItems, addToCart, updateCartQuantity, removeCartItem } = useCart();
+  const { cartItems, loading, addToCart, updateCartQuantity, removeCartItem } = useCart();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
@@ -126,7 +126,6 @@ const addToWishlist = async (product) => {
 
       if (addResponse.ok) {
         const result = await addResponse.json();
-        toast.success("Đã thêm vào danh sách yêu thích");
         // Cập nhật state
         setWishlistItems(prev => [...prev, result.data[0]]);
       } else {
@@ -156,7 +155,6 @@ const addToWishlist = async (product) => {
     setActiveSection('productListing');
   };
   const subtotal = React.useMemo(() => {
-    console.log("Re-calculating subtotal...", cartItems);
     return cartItems.reduce((acc, item) => {
       const price = item.unit_price ?? item.products?.base_price ?? 0;
       return acc + (price * item.quantity);
@@ -180,8 +178,8 @@ const addToWishlist = async (product) => {
         {activeSection === 'storeHome' && <StoreHome onFilterCategory={openProductListing} onOpenListing={openProductListing} onSearch={viewSearchResults} onSelectProduct={openProductDetail} />}
         {activeSection === 'productListing' && <ProductListing categorySlug={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
-        {activeSection === 'cart' && <CartPage cartItems={cartItems} onQuantityChange={updateCartQuantity} onRemoveItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons} subtotal={subtotal} />}
-        {activeSection === 'checkout' && <CheckoutPage cartItems={[...cartItems]} subtotal={subtotal} onPlaceOrder={placeOrder} onBack={openCart} />}
+        {activeSection === 'cart' && (<CartPage cartItems={cartItems} loading={loading} updateCartQuantity={updateCartQuantity} removeCartItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons}/>)}
+        {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={placeOrder} onBack={openCart} />)}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}
         {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}
