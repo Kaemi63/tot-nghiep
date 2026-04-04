@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
-import OrderCard from './OrderCard';
+import OrderCard from '../../components/OrderHistory/OrderCard';
 
 const OrderHistoryPage = ({ orders = [] }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
