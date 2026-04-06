@@ -1,35 +1,54 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { orderService } from '../services/orderService';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 
 export const useOrder = () => {
   const [ordering, setOrdering] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
+
+  // Hàm này dùng để lấy dữ liệu khi nhấn vào nút Sidebar
+  const fetchOrderHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const data = await orderService.getMyOrders(session.access_token);
+      setOrderHistory(data || []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const placeOrder = async (formData, shippingFee) => {
     setOrdering(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Vui lòng đăng nhập để thanh toán");
+      if (!session) throw new Error("Vui lòng đăng nhập");
 
-      // Chuẩn bị dữ liệu đúng cấu trúc bảng orders
       const payload = {
         recipient_name: formData.fullname,
         recipient_phone: formData.phone,
         recipient_email: formData.email,
         shipping_address: formData.address,
-        province: formData.province || 'Hồ Chí Minh', // Bạn có thể bổ sung select tỉnh thành
+        province: formData.province || 'Hồ Chí Minh',
         district: formData.district || 'Quận 1',
         ward: formData.ward || 'Phường 1',
         note: formData.note,
-        payment_method: formData.payment.toLowerCase(), // cod, bank_transfer...
+        payment_method: formData.payment.toLowerCase(),
         shipping_fee: shippingFee,
       };
 
       const result = await orderService.createOrder(session.access_token, payload);
       toast.success("Đặt hàng thành công!");
-      return result; // Trả về để Component xử lý chuyển trang/hiện success
+      
+      // Load lại lịch sử ngay lập tức để dữ liệu mới nhất
+      fetchOrderHistory(); 
+      return result;
     } catch (error) {
       toast.error(error.message);
       return null;
@@ -38,5 +57,11 @@ export const useOrder = () => {
     }
   };
 
-  return { placeOrder, ordering, orderHistory };
+  return { 
+    placeOrder, 
+    ordering, 
+    loading, 
+    orderHistory, 
+    fetchOrderHistory 
+  };
 };

@@ -12,6 +12,7 @@ import WishlistPage from './Wishlist';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { useCart } from '../hooks/useCart';
+import { orderService } from '../services/orderService';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
@@ -22,6 +23,7 @@ const ChatPage = () => {
   const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem } = useCart();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
   const [previousSection, setPreviousSection] = useState('storeHome');
   
@@ -138,20 +140,36 @@ const addToWishlist = async (product) => {
     toast.error("Có lỗi xảy ra, vui lòng thử lại");
   }
 };
+  const handleOrderSuccess = () => {
+    // 1. Ép giỏ hàng load lại từ Database (lúc này server đã xóa cart_items cũ)
+    fetchCart(); 
 
+    // 2. Chuyển hướng người dùng
+    setActiveSection('orderHistory');
 
-// Thay thế hàm placeOrder cũ bằng hàm này:
-const handleOrderSuccess = () => {
-  // 1. Ép giỏ hàng load lại từ Database (lúc này server đã xóa cart_items cũ)
-  fetchCart(); 
-  
-  // 2. Chuyển hướng người dùng
-  setActiveSection('orderHistory');
-  
-  // 3. Thông báo
-  toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
-};
-
+    // 3. Thông báo
+    toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
+  };
+  const fetchOrders = async () => {
+      setLoadingOrders(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Gọi API lấy orders (Backend đã sửa để join order_status_histories)
+          const data = await orderService.getMyOrders(session.access_token);
+          setOrders(data || []);
+        }
+      } catch (error) {
+        console.error("Lỗi lấy đơn hàng:", error);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+    useEffect(() => {
+    if (activeSection === 'orderHistory') {
+      fetchOrders();
+    }
+  }, [activeSection]);
   const handleApplyCoupon = (coupon) => {
     console.log('applied coupon', coupon);
   };
@@ -174,6 +192,8 @@ const handleOrderSuccess = () => {
         onOpenAccount={openMyAccount}
         onOpenCart={openCart}
         onOpenOrderHistory={openOrderHistory}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
         onOpenWishlist={openWishlist}
         isStore={activeSection !== 'chat'}
         showCategories={activeSection !== 'chat' && activeSection !== 'myAccount'}
@@ -186,7 +206,7 @@ const handleOrderSuccess = () => {
         {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'cart' && (<CartPage cartItems={cartItems} loading={loading} updateCartQuantity={updateCartQuantity} removeCartItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons}/>)}
         {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={handleOrderSuccess} onBack={openCart} />)}
-        {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}
+        {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} loading={loadingOrders} onRefresh={fetchOrders}/>}
         {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}
       </main>

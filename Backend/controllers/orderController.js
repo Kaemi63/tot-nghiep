@@ -2,6 +2,8 @@ const supabase = require('../config/supabaseClient');
 
 exports.createOrder = async (req, res) => {
   const userId = req.user.id;
+  
+  // Lấy dữ liệu từ req.body
   const { 
     recipient_name, 
     recipient_phone, 
@@ -19,6 +21,7 @@ exports.createOrder = async (req, res) => {
   console.log("DEBUG: Đang tìm giỏ hàng cho UserID:", userId);
 
   try {
+    // BƯỚC 1: Lấy giỏ hàng và JOIN với bảng products để lấy tên sản phẩm
     const { data: cart, error: cartError } = await supabase
       .from('carts')
       .select(`
@@ -34,19 +37,16 @@ exports.createOrder = async (req, res) => {
       .eq('user_id', userId)
       .single();
 
-    console.log("DEBUG: Kết quả trả về từ Supabase:", cart);
-    console.log("DEBUG: Lỗi từ Supabase (nếu có):", cartError);
-
     if (cartError || !cart || !cart.cart_items || cart.cart_items.length === 0) {
       return res.status(400).json({ error: "Giỏ hàng trống, không thể đặt hàng" });
     }
 
-    // Tính toán tiền bạc
+    // BƯỚC 2: Tính toán tiền bạc
     const subtotal = cart.cart_items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
     const total_amount = subtotal + (shipping_fee || 0);
     const order_code = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-    //Tạo đơn hàng chính (orders)
+    // BƯỚC 3: Tạo đơn hàng chính (orders)
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
@@ -72,7 +72,7 @@ exports.createOrder = async (req, res) => {
 
     if (orderError) throw orderError;
 
-    // Lưu chi tiết đơn hàng (order_items) 
+    // BƯỚC 4: Lưu chi tiết đơn hàng (order_items)
     const orderItemsPayload = cart.cart_items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -89,14 +89,16 @@ exports.createOrder = async (req, res) => {
 
     if (itemsError) throw itemsError;
 
-    //Ghi lại lịch sử trạng thái đầu tiên
+    // BƯỚC 5: Ghi lại lịch sử trạng thái đầu tiên
+    // CẬP NHẬT: Thêm changed_by = userId để ghi nhận người thực hiện thay đổi
     await supabase.from('order_status_histories').insert([{
       order_id: order.id,
       status: 'pending',
-      note: 'Khách hàng đặt hàng thành công'
+      note: 'Khách hàng đặt hàng thành công',
+      changed_by: userId // <--- THÊM DÒNG NÀY (Liên kết tới profiles.id)
     }]);
 
-    //Xóa sạch giỏ hàng sau khi đặt thành công
+    // BƯỚC 6: Xóa sạch giỏ hàng sau khi đặt thành công
     await supabase.from('cart_items').delete().eq('cart_id', cart.id);
 
     res.status(201).json({ 
