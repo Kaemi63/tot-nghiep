@@ -88,9 +88,7 @@ exports.createOrder = async (req, res) => {
       .insert(orderItemsPayload);
 
     if (itemsError) throw itemsError;
-
-    // BƯỚC 5: Ghi lại lịch sử trạng thái đầu tiên
-    // CẬP NHẬT: Thêm changed_by = userId để ghi nhận người thực hiện thay đổi
+    // BƯỚC 5: Thêm bản ghi vào order_status_histories để theo dõi trạng thái đơn hàng
     await supabase.from('order_status_histories').insert([{
       order_id: order.id,
       status: 'pending',
