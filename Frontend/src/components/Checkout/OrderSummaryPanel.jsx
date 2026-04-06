@@ -1,7 +1,7 @@
 import React from 'react';
 import { fmt } from '../../utils/format.js';
 
-const OrderSummaryPanel = ({ cartItems, subtotal }) => {
+const OrderSummaryPanel = ({ cartItems, subtotal, shippingMethod }) => {
   // Tính phí vận chuyển dựa trên subtotal
   const shippingFee = subtotal >= 500000 ? 0 : (shippingMethod === 'express' ? 35000 : 20000);
   const total = subtotal + shippingFee;

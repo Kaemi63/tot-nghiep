@@ -7,6 +7,7 @@ const productRoutes = require('./routes/product');
 const adminRoutes = require('./routes/adminRoutes');
 const wishlistRoutes = require('./routes/wishlist');
 const cartRoutes = require('./routes/cart');
+const orderRoutes = require('./routes/orderRoutes');
 
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
@@ -19,6 +20,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
 
 //API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);

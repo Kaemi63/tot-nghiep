@@ -19,7 +19,7 @@ const ChatPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const { cartItems, loading, addToCart, updateCartQuantity, removeCartItem } = useCart();
+  const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem } = useCart();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
@@ -140,11 +140,17 @@ const addToWishlist = async (product) => {
 };
 
 
-  const placeOrder = (order) => {
-    setOrders((prev) => [...prev, order]);
-    setCartItems([]);
-    setActiveSection('orderHistory');
-  };
+// Thay thế hàm placeOrder cũ bằng hàm này:
+const handleOrderSuccess = () => {
+  // 1. Ép giỏ hàng load lại từ Database (lúc này server đã xóa cart_items cũ)
+  fetchCart(); 
+  
+  // 2. Chuyển hướng người dùng
+  setActiveSection('orderHistory');
+  
+  // 3. Thông báo
+  toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
+};
 
   const handleApplyCoupon = (coupon) => {
     console.log('applied coupon', coupon);
@@ -179,7 +185,7 @@ const addToWishlist = async (product) => {
         {activeSection === 'productListing' && <ProductListing categorySlug={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'cart' && (<CartPage cartItems={cartItems} loading={loading} updateCartQuantity={updateCartQuantity} removeCartItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons}/>)}
-        {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={placeOrder} onBack={openCart} />)}
+        {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={handleOrderSuccess} onBack={openCart} />)}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} />}
         {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}
