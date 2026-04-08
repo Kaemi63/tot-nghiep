@@ -1,34 +1,49 @@
 import React from 'react';
+import { fmt } from '../../utils/format.js'; // Sử dụng file fmt của bạn
+import { Stars } from '../../components/ShopUI/ShopUI.jsx';
 
 const ProductInfo = ({ product }) => {
-  const formattedPrice = new Intl.NumberFormat('vi-VN', { 
-    style: 'currency', currency: 'VND' 
-  }).format(product.base_price || 0);
-
+  const rating = product.rating ?? 4.8;
+  const reviews = product.reviews || [];
+  
   const sizes = product.product_variants ? [...new Set(product.product_variants.map(v => v.size).filter(Boolean))] : [];
   const colors = product.product_variants ? [...new Set(product.product_variants.map(v => v.color).filter(Boolean))] : [];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.3em] text-indigo-500 mb-3">
-          {product.brands?.name || 'High-end Collection'}
-        </p>
-        <h1 className="text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-          {product.name}
-        </h1>
-        <p className="mt-5 text-3xl font-light text-slate-900 tracking-tight">
-          {formattedPrice}
-        </p>
+    <div className="flex flex-col gap-5">
+      {/* Brand - CSS từ index cũ */}
+      {product.brands?.name && (
+        <span className="inline-block text-xs font-black uppercase tracking-widest text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full w-fit">
+          {product.brands.name}
+        </span>
+      )}
+
+      {/* Tên sản phẩm - CSS từ index cũ */}
+      <h1 className="text-3xl font-extrabold text-slate-800 leading-snug">
+        {product.name}
+      </h1>
+
+      {/* Đánh giá Stars - CSS từ index cũ */}
+      <div className="flex items-center gap-3">
+        <Stars rating={rating} size="md" />
+        <span className="text-sm text-slate-500">{rating} / 5</span>
+        {reviews.length > 0 && <span className="text-sm text-slate-400">({reviews.length} đánh giá)</span>}
       </div>
 
-      {/* Hiển thị Lựa chọn Màu sắc */}
+      {/* Giá tiền - Sử dụng FMT */}
+      <div className="flex items-baseline gap-3">
+        <span className="text-4xl font-extrabold text-indigo-600">
+          {fmt(product.base_price || 0)}
+        </span>
+      </div>
+
+      {/* Color Selection */}
       {colors.length > 0 && (
-        <div className="space-y-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Màu sắc</span>
-          <div className="flex flex-wrap gap-3">
+        <div className="space-y-3 pt-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Màu sắc</p>
+          <div className="flex flex-wrap gap-2">
             {colors.map(color => (
-              <button key={color} className="px-5 py-2 rounded-full border border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-600 hover:border-indigo-600 transition-all uppercase">
+              <button key={color} className="px-4 py-1.5 rounded-full border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-indigo-600 transition-all uppercase">
                 {color}
               </button>
             ))}
@@ -36,25 +51,18 @@ const ProductInfo = ({ product }) => {
         </div>
       )}
 
-      {/* Hiển thị Lựa chọn Kích thước */}
+      {/* Size Selection */}
       {sizes.length > 0 && (
-        <div className="space-y-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Kích thước</span>
-          <div className="flex flex-wrap gap-3">
+        <div className="space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Kích thước</p>
+          <div className="flex flex-wrap gap-2">
             {sizes.map(size => (
-              <button key={size} className="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-xs font-black text-slate-600 hover:bg-white hover:border-indigo-600 transition-all uppercase">
+              <button key={size} className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:border-indigo-600 transition-all">
                 {size}
               </button>
             ))}
           </div>
         </div>
-      )}
-
-      {/* Mô tả ngắn */}
-      {product.short_description && (
-        <p className="text-slate-500 leading-relaxed font-light text-lg italic border-l-2 border-indigo-50 pl-6">
-          {product.short_description}
-        </p>
       )}
     </div>
   );
