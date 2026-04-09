@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import ProductInfo from '../../components/ProductDetail/ProductInfo.jsx';
 import ProductActions from '../../components/ProductDetail/ProductActions.jsx';
+import ProductReviews from '../../components/ProductDetail/ProductReviews.jsx';
 
 const ProductDetail = ({ product, onBack, onAddToCart, onAddToWishlist }) => {
   const [qty, setQty] = useState(1);
-  const [activeTab, setActiveTab] = useState('desc');
   const [wishlisted, setWishlisted] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [activeTab, setActiveTab] = useState('desc');
 
   if (!product) return null;
 
@@ -20,23 +23,29 @@ const ProductDetail = ({ product, onBack, onAddToCart, onAddToWishlist }) => {
         </button>
 
         <div className="grid gap-12 lg:grid-cols-2 items-start">
-          {/* Cột trái: Ảnh */}
+
           <div className="lg:sticky lg:top-8">
             <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-slate-100">
               <img src={image} className="w-full h-full object-cover" alt={product.name} />
             </div>
           </div>
 
-          {/* Cột phải: Đã dọn sạch code vụn */}
           <div className="flex flex-col gap-8">
-            <ProductInfo product={product} />
-            
+            <ProductInfo product={product}
+              selectedColor={selectedColor}
+              setSelectedColor={setSelectedColor}
+              selectedSize={selectedSize}
+              setSelectedSize={setSelectedSize}
+            />
+
             <ProductActions 
               product={product} 
               qty={qty} 
               setQty={setQty} 
               wishlisted={wishlisted} 
-              onAddToCart={onAddToCart} 
+              onAddToCart={() => onAddToCart({ ...product, 
+                selected_color: selectedColor, 
+                selected_size: selectedSize }, qty)}
               onAddToWishlist={() => {
                 setWishlisted(!wishlisted); 
                 onAddToWishlist(product);
@@ -52,9 +61,38 @@ const ProductDetail = ({ product, onBack, onAddToCart, onAddToWishlist }) => {
           </div>
         </div>
 
-        {/* Tabs bên dưới giữ nguyên code của bạn */}
-        <div className="mt-14">
-           {/* ... code Tab desc và reviews của bạn ... */}
+      <div className="mt-14">
+        <div className="flex gap-8 border-b border-slate-100 mb-8">
+          {[
+            { id: 'desc', label: 'Mô tả chi tiết' },
+            { id: 'reviews', label: `Đánh giá (${reviews.length})` }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative ${
+                activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+              }`}
+        >
+          {tab.label}
+          {activeTab === tab.id && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-full animate-in fade-in zoom-in duration-300" />
+          )}
+        </button>
+        ))}
+        </div>
+          <div className="max-w-3xl">
+            {activeTab === 'desc' ? (
+              <div className="prose prose-slate max-w-none">
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  {product.description || "Sản phẩm đang được cập nhật mô tả chi tiết từ nhà sản xuất."}
+                </p>
+              </div>
+            ) : (
+              /* GỌI FILE REVIEW Ở ĐÂY */
+              <ProductReviews reviews={reviews} />
+            )}
+          </div>  
         </div>
       </div>
     </div>

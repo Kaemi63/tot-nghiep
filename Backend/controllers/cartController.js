@@ -12,7 +12,8 @@ exports.getCart = async (req, res) => {
           id,
           quantity,
           unit_price,
-          products ( id, name, thumbnail_url, base_price, brands ( name ) )
+          products ( id, name, thumbnail_url, base_price, brands ( name ) ),
+          product_variants (id, variant_name, sku, price, stock_quantity, color, size)
         )
       `)
       .eq('user_id', userId)

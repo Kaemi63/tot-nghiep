@@ -40,7 +40,12 @@ export const useCart = () => {
     product_id: product.id, // Đảm bảo lấy đúng id
     quantity: qty,
     product_variant_id: product.product_variants?.[0]?.id || null,
-    unit_price: product.base_price || 0 
+    unit_price: product.base_price || 0 ,
+    selected_color: product.selected_color, 
+    selected_size: product.selected_size,
+    product_variant_id: product.product_variants?.find(
+      v => v.color === product.selected_color && v.size === product.selected_size
+    )?.id || product.product_variants?.[0]?.id || null
   };
 
   try {

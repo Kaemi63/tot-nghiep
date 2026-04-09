@@ -6,6 +6,8 @@ const CartItem = ({ item, onQuantityChange, onRemove }) => {
   const product = item.products; 
   const quantity = item.quantity;
   const price = item.unit_price;
+  const color = item.product_variants?.color; // Nếu có thông tin màu sắc từ variant
+  const size = item.product_variants?.size; // Nếu có thông tin kích thước từ variant
 
   // Thông tin hiển thị
   const image = product?.thumbnail_url || product?.image || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=400&q=80';
@@ -31,7 +33,24 @@ const CartItem = ({ item, onQuantityChange, onRemove }) => {
         {brandName && (
           <p className="text-xs text-slate-400 mt-0.5">{brandName}</p>
         )}
+        {(color || size) && (
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-black uppercase tracking-tight flex items-center gap-1.5">
+          {color && (
+              <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100/50">
+                Màu: {color}
+              </span>
+            )}
+            {size && (
+              <span className="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-200">
+                Size: {size}
+              </span>
+            )}
+          </p>
+        </div>
+  )}
         <p className="text-indigo-600 font-extrabold text-sm mt-1">{fmt(price)}</p>
+        
         
         {/* Bộ điều khiển số lượng */}
         <div className="flex items-center gap-1 mt-2.5">
