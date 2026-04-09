@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 export const useCart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
-
+  const clearCart = () => { setCartItems([]);};
   const fetchCart = useCallback(async () => {
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   
@@ -127,6 +127,6 @@ const updateCartQuantity = async (cartItemId, newQty) => {
     toast.error("Lỗi kết nối server");
   }
 };
-  return { cartItems, loading, addToCart, removeCartItem, refreshCart: fetchCart, updateCartQuantity };
+  return { cartItems, loading, addToCart, removeCartItem, refreshCart: fetchCart, updateCartQuantity,clearCart };
 };
   

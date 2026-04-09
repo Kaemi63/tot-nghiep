@@ -20,7 +20,7 @@ const ChatPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem } = useCart();
+  const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem,clearCart } = useCart();
   const coupons = [];
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -141,7 +141,7 @@ const addToWishlist = async (product) => {
   }
 };
   const handleOrderSuccess = () => {
-    // 1. Ép giỏ hàng load lại từ Database (lúc này server đã xóa cart_items cũ)
+    clearCart(); 
     fetchCart(); 
 
     // 2. Chuyển hướng người dùng
