@@ -28,4 +28,19 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const admin = async (req, res, next) => {
+  // Sau khi qua protect, req.user đã có dữ liệu
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', req.user.id)
+    .single();
+
+  if (profile && profile.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ error: "Quyền truy cập bị từ chối. Chỉ dành cho Admin." });
+  }
+};
+
+module.exports = { protect, admin };

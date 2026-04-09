@@ -3,7 +3,6 @@ const supabase = require('../config/supabaseClient');
 exports.createOrder = async (req, res) => {
   const userId = req.user.id;
   
-  // Lấy dữ liệu từ req.body
   const { 
     recipient_name, 
     recipient_phone, 
@@ -18,10 +17,8 @@ exports.createOrder = async (req, res) => {
     coupon_id 
   } = req.body;
 
-  console.log("DEBUG: Đang tìm giỏ hàng cho UserID:", userId);
-
   try {
-    // BƯỚC 1: Lấy giỏ hàng và JOIN với bảng products để lấy tên sản phẩm
+    // 1. Lấy giỏ hàng (Giữ nguyên code gốc của bạn)
     const { data: cart, error: cartError } = await supabase
       .from('carts')
       .select(`
@@ -41,38 +38,62 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ error: "Giỏ hàng trống, không thể đặt hàng" });
     }
 
-    // BƯỚC 2: Tính toán tiền bạc
+    // 2. Tính subtotal (Giữ nguyên)
     const subtotal = cart.cart_items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-    const total_amount = subtotal + (shipping_fee || 0);
-    const order_code = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-    // BƯỚC 3: Tạo đơn hàng chính (orders)
+    // --- PHẦN MỚI: XỬ LÝ COUPON (TÍNH TOÁN LẠI TẠI SERVER) ---
+    let discount_amount = 0;
+    if (coupon_id) {
+      const { data: coupon } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('id', coupon_id)
+        .eq('status', 'active')
+        .single();
+
+      if (coupon) {
+        if (coupon.discount_type === 'percent') {
+          discount_amount = (subtotal * coupon.discount_value) / 100;
+          if (coupon.max_discount && discount_amount > coupon.max_discount) {
+            discount_amount = coupon.max_discount;
+          }
+        } else {
+          discount_amount = coupon.discount_value;
+        }
+      }
+    }
+    // -------------------------------------------------------
+
+    // 3. Tính tổng tiền cuối cùng
+    const total_amount = subtotal + Number(shipping_fee) - discount_amount;
+
+    // 4. Tạo đơn hàng (Bổ sung discount_amount và total_amount)
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
         user_id: userId,
-        order_code,
-        recipient_name, 
-        recipient_phone, 
+        order_code: `ORD-${Math.random().toString(36).toUpperCase().substring(2, 9)}`,
+        recipient_name,
+        recipient_phone,
         recipient_email,
-        shipping_address, 
-        province, 
-        district, 
+        shipping_address,
+        province,
+        district,
         ward,
-        note, 
-        subtotal, 
-        shipping_fee: shipping_fee || 0, 
-        total_amount,
+        note,
+        subtotal,
+        discount_amount, // Giá trị đã tính ở trên
+        shipping_fee,
+        total_amount,    // Tổng cuối cùng
         payment_method,
-        payment_status: 'unpaid',
-        order_status: 'pending'
+        coupon_id: coupon_id || null
       }])
       .select()
       .single();
 
     if (orderError) throw orderError;
 
-    // BƯỚC 4: Lưu chi tiết đơn hàng (order_items)
+    // 5. Insert order_items (Giữ nguyên code gốc)
     const orderItemsPayload = cart.cart_items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -88,15 +109,31 @@ exports.createOrder = async (req, res) => {
       .insert(orderItemsPayload);
 
     if (itemsError) throw itemsError;
-    // BƯỚC 5: Thêm bản ghi vào order_status_histories để theo dõi trạng thái đơn hàng
+
+    // --- PHẦN MỚI: GHI LOG SỬ DỤNG COUPON ---
+    if (coupon_id) {
+      // Lưu vào bảng coupon_usages
+      await supabase.from('coupon_usages').insert([{
+        coupon_id: coupon_id,
+        user_id: userId,
+        order_id: order.id
+      }]);
+
+      // Cập nhật used_count của coupon
+      const { data: cpData } = await supabase.from('coupons').select('used_count').eq('id', coupon_id).single();
+      await supabase.from('coupons').update({ used_count: (cpData?.used_count || 0) + 1 }).eq('id', coupon_id);
+    }
+    // ---------------------------------------
+
+    // 6. Ghi lại lịch sử trạng thái (Thêm changed_by)
     await supabase.from('order_status_histories').insert([{
       order_id: order.id,
       status: 'pending',
       note: 'Khách hàng đặt hàng thành công',
-      changed_by: userId // <--- THÊM DÒNG NÀY (Liên kết tới profiles.id)
+      changed_by: userId // Đảm bảo có cột này để không lỗi DB
     }]);
 
-    // BƯỚC 6: Xóa sạch giỏ hàng sau khi đặt thành công
+    // 7. Xóa sạch giỏ hàng (Giữ nguyên)
     await supabase.from('cart_items').delete().eq('cart_id', cart.id);
 
     res.status(201).json({ 
@@ -111,13 +148,18 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// Lấy danh sách đơn hàng của tôi
+// Hàm lấy danh sách đơn hàng (Giữ nguyên hoặc bổ sung nếu cần)
 exports.getMyOrders = async (req, res) => {
+  const userId = req.user.id;
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*)')
-      .eq('user_id', req.user.id)
+      .select(`
+        *,
+        order_items (*),
+        order_status_histories (*)
+      `)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
