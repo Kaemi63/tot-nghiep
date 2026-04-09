@@ -5,9 +5,9 @@ import OrderSummaryPanel from '../../components/Checkout/OrderSummaryPanel.jsx';
 import { orderService } from '../../services/orderService';
 import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
+import { useCoupon } from '../../hooks/useCoupon'; // Import hook xử lý coupon
 
 const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
-  // Cập nhật State: Thêm province, district, ward
   const [data, setData] = useState({ 
     fullname: '', phone: '', email: '', 
     province: '', district: '', ward: '', address: '', 
@@ -16,8 +16,56 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
   const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
 
+  // --- 1. TÍCH HỢP HOOK COUPON ---
+  const { 
+    couponCode, 
+    setCouponCode, 
+    appliedCoupon, 
+    discount, 
+    handleApplyCoupon 
+  } = useCoupon(subtotal);
+
   const shippingFee = subtotal >= 500000 ? 0 : (data.shipping === 'express' ? 35000 : 20000);
-  const grandTotal = subtotal + shippingFee;
+  
+  // --- 2. CẬP NHẬT TỔNG THANH TOÁN (TRỪ CHIẾT KHẤU) ---
+  const grandTotal = Math.max(0, subtotal + shippingFee - discount);
+
+  const handleSubmit = async () => {
+    if (!data.fullname || !data.phone || !data.address || !data.province || !data.district || !data.ward) {
+      toast.error('Vui lòng điền đầy đủ thông tin giao hàng');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Vui lòng đăng nhập lại");
+
+      const orderData = {
+        recipient_name: data.fullname,
+        recipient_phone: data.phone,
+        recipient_email: data.email,
+        shipping_address: data.address,
+        province: data.province,
+        district: data.district,
+        ward: data.ward,
+        note: data.note,
+        payment_method: data.payment,
+        shipping_fee: shippingFee,
+        // --- 3. GỬI ID COUPON LÊN BACKEND ---
+        coupon_id: appliedCoupon?.coupon_id || null 
+      };
+
+      const result = await orderService.createOrder(session.access_token, orderData);
+      setOrderResult(result);
+      toast.success('Đặt hàng thành công!');
+      if (onPlaceOrder) onPlaceOrder();
+    } catch (error) {
+      toast.error(error.message || 'Có lỗi xảy ra khi đặt hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!cartItems.length && !orderResult) {
     return (
@@ -26,62 +74,19 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
           icon="🛒" 
           title="Giỏ hàng trống" 
           desc="Không có sản phẩm để thanh toán." 
-          action={{ label: 'Quay lại mua sắm', onClick: onBack }} 
+          action={{ label: 'Quay lại mua sắm', onClick: onBack }}
         />
       </PageShell>
     );
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Kiểm tra sơ bộ xem người dùng đã chọn đủ địa chỉ chưa
-    if (!data.province || !data.district || !data.ward) {
-      toast.error("Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Phường/Xã!");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Vui lòng đăng nhập lại");
-
-      // Sử dụng dữ liệu thực từ state thay vì hardcode
-      const payload = {
-        recipient_name: data.fullname,
-        recipient_phone: data.phone,
-        recipient_email: data.email,
-        shipping_address: data.address, // Số nhà, tên đường
-        province: data.province,        // Tỉnh/Thành phố đã chọn
-        district: data.district,        // Quận/Huyện đã chọn
-        ward: data.ward,                // Phường/Xã đã chọn
-        note: data.note,
-        payment_method: data.payment.toLowerCase(),
-        shipping_fee: shippingFee
-      };
-
-      const result = await orderService.createOrder(session.access_token, payload);
-      setOrderResult(result);
-      toast.success("Đặt hàng thành công!");
-      
-      onPlaceOrder?.(); 
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (orderResult) return (
     <PageShell>
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center text-4xl mb-5 animate-bounce">✅</div>
-        <h2 className="text-2xl font-extrabold text-slate-800">Đặt hàng thành công!</h2>
-        <p className="text-slate-500 text-sm mt-2 max-w-sm">
-          Mã đơn hàng: <span className="font-bold text-indigo-600">#{orderResult.order_code}</span>
-        </p>
-        <p className="text-slate-400 text-xs mt-1">Chúng tôi sẽ liên hệ sớm để xác nhận đơn hàng.</p>
+      <div className="max-w-2xl mx-auto text-center py-12 bg-white rounded-3xl border border-slate-100 shadow-xl">
+        <div className="text-6xl mb-6">🎉</div>
+        <h2 className="text-3xl font-black text-slate-800 mb-2">ĐẶT HÀNG THÀNH CÔNG!</h2>
+        <p className="text-slate-500 mb-4">Mã đơn hàng: <span className="font-bold text-indigo-600">{orderResult.order_code}</span></p>
+        <p className="px-8 text-slate-400">Cảm ơn bạn đã tin tưởng. Chúng tôi sẽ liên hệ sớm để xác nhận đơn hàng.</p>
         <button onClick={onBack} className="mt-6 px-6 py-3 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors">
           Tiếp tục mua sắm
         </button>
@@ -104,11 +109,22 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
             disabled={loading}
             className="w-full mt-8 py-4 rounded-2xl bg-slate-900 text-white font-extrabold shadow-xl hover:bg-indigo-600 disabled:bg-slate-300 transition-all active:scale-[0.98]"
           >
-            {loading ? "ĐANG XỬ LÝ..." : `THANH TOÁN ${new Intl.NumberFormat('vi-VN').format(grandTotal)}₫`}
+            {loading ? 'ĐANG XỬ LÝ...' : `XÁC NHẬN THANH TOÁN - ${grandTotal.toLocaleString()}₫`}
           </button>
         </div>
-        <div>
-          <OrderSummaryPanel cartItems={cartItems} subtotal={subtotal} shippingMethod={data.shipping} />
+
+        <div className="lg:col-span-1">
+          {/* --- 4. TRUYỀN PROPS COUPON VÀO PANEL TỔNG HỢP --- */}
+          <OrderSummaryPanel 
+            cartItems={cartItems} 
+            subtotal={subtotal} 
+            shippingMethod={data.shipping}
+            couponCode={couponCode}
+            setCouponCode={setCouponCode}
+            onApplyCoupon={handleApplyCoupon}
+            appliedCoupon={appliedCoupon}
+            discount={discount}
+          />
         </div>
       </div>
     </PageShell>

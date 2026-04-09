@@ -21,10 +21,10 @@ const ChatPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem } = useCart();
+  const coupons = [];
   const [wishlistItems, setWishlistItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
-  const coupons = [{ code: 'COOL10', type: 'percent', value: 0.1 }, { code: 'FREESHIP', type: 'fixed', value: 40000 }];
   const [previousSection, setPreviousSection] = useState('storeHome');
   
 
@@ -204,8 +204,8 @@ const addToWishlist = async (product) => {
         {activeSection === 'storeHome' && <StoreHome onFilterCategory={openProductListing} onOpenListing={openProductListing} onSearch={viewSearchResults} onSelectProduct={openProductDetail} />}
         {activeSection === 'productListing' && <ProductListing categorySlug={selectedCategory} searchQuery={searchQuery} onSelectProduct={openProductDetail} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
         {activeSection === 'productDetail' && <ProductDetail product={selectedProduct} onBack={handleBack} onAddToCart={addToCart} onAddToWishlist={addToWishlist} />}
-        {activeSection === 'cart' && (<CartPage cartItems={cartItems} loading={loading} updateCartQuantity={updateCartQuantity} removeCartItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout} availableCoupons={coupons}/>)}
-        {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={handleOrderSuccess} onBack={openCart} />)}
+        {activeSection === 'cart' && (<CartPage cartItems={cartItems} loading={loading} updateCartQuantity={updateCartQuantity} removeCartItem={removeCartItem} onApplyCoupon={handleApplyCoupon} onCheckout={openCheckout}/>)}
+        {activeSection === 'checkout' && (<CheckoutPage cartItems={cartItems}subtotal={subtotal}onPlaceOrder={handleOrderSuccess} onBack={openCart} availableCoupons={coupons} />)}
         {activeSection === 'orderHistory' && <OrderHistoryPage orders={orders} loading={loadingOrders} onRefresh={fetchOrders}/>}
         {activeSection === 'wishlist' && <WishlistPage onAddToCart={addToCart} />}
         {activeSection === 'myAccount' && <MyAccount />}

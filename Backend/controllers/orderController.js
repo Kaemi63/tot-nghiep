@@ -110,20 +110,40 @@ exports.createOrder = async (req, res) => {
 
     if (itemsError) throw itemsError;
 
-    // --- PHẦN MỚI: GHI LOG SỬ DỤNG COUPON ---
-    if (coupon_id) {
-      // Lưu vào bảng coupon_usages
-      await supabase.from('coupon_usages').insert([{
+
+  if (coupon_id) {
+    console.log("DEBUG: Bắt đầu lưu coupon cho Order:", order.id);
+
+    const { data: cpData, error: cpError } = await supabase
+      .from('coupons')
+      .select('used_count')
+      .eq('id', coupon_id)
+      .single();
+    
+    if (cpError) console.error("Lỗi lấy used_count:", cpError.message);
+
+    const { error: updateError } = await supabase
+      .from('coupons')
+      .update({ used_count: (cpData?.used_count || 0) + 1 })
+      .eq('id', coupon_id);
+
+    if (updateError) console.error("Lỗi update used_count:", updateError.message);
+
+    console.log("DEBUG: Đang insert vào coupon_usages với userId:", userId);
+    const { error: usageError } = await supabase
+      .from('coupon_usages')
+      .insert([{
         coupon_id: coupon_id,
-        user_id: userId,
+        user_id: userId, 
         order_id: order.id
       }]);
 
-      // Cập nhật used_count của coupon
-      const { data: cpData } = await supabase.from('coupons').select('used_count').eq('id', coupon_id).single();
-      await supabase.from('coupons').update({ used_count: (cpData?.used_count || 0) + 1 }).eq('id', coupon_id);
+    if (usageError) {
+      console.error("LỖI CHI TIẾT LƯU COUPON_USAGES:", usageError);
+    } else {
+      console.log("Lưu coupon_usages thành công!");
     }
-    // ---------------------------------------
+  }
 
     // 6. Ghi lại lịch sử trạng thái (Thêm changed_by)
     await supabase.from('order_status_histories').insert([{
