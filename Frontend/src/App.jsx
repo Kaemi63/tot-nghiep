@@ -3,7 +3,7 @@ import MainPage from './pages/Main';
 import Login from './pages/Login';      
 import Register from './pages/Register'; 
 import ChatPage from './pages/ChatPage'; 
-import UserManagement from '../src/pages/Admin/UserManagement.jsx';
+import AdminPage from '../src/pages/Admin/AdminPage.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -65,9 +65,8 @@ function App() {
         <ChatPage onLogout={handleLogout} />
       )}
 
-      {/* Trang Quản lý (Admin) */}
       {currentPage === 'admin' && (
-        <UserManagement onLogout={handleLogout} />
+        <AdminPage onLogout={handleLogout} />
       )}
     </div>
   );

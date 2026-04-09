@@ -22,9 +22,14 @@ const AdminSidebar = ({ activePage, setActivePage, onLogout }) => {
         {!collapsed && <span>FSA <span className="text-indigo-500">ADMIN</span></span>}
         <button onClick={() => setCollapsed(!collapsed)}><Menu size={20} /></button>
       </div>
-      <nav className="flex-1 px-3 mt-4 space-y-1">
-        <button onClick={() => setActivePage('users')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl ${activePage === 'users' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800'}`}>
-          <Users size={20} /> {!collapsed && <span className="flex-1 text-left font-bold">Danh sách người dùng</span>}
+      <nav className="flex-1 px-3 mt-4 space-y-1.5 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+        <button onClick={() => setActivePage('users')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-150 ${activePage === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800/60 hover:text-white'}`}>
+          <Users size={19} className={activePage === 'users' ? "opacity-100" : "opacity-60"} /> 
+          {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Danh sách người dùng</span>}
+        </button>
+        <button onClick={() => setActivePage('products')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-150 ${activePage === 'products' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800/60 hover:text-white'}`}>
+          <Package size={19} className={activePage === 'products' ? "opacity-100" : "opacity-60"} /> 
+          {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Danh sách sản phẩm</span>}
         </button>
       </nav>
       <div className="p-4 border-t border-slate-800">
