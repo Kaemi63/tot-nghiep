@@ -174,10 +174,10 @@ exports.getMyOrders = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select(`
+       .select(`
         *,
-        order_items (*),
-        order_status_histories (*)
+        order_status_histories (*),
+        order_items ( *, products (name,thumbnail_url))
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });

@@ -24,7 +24,7 @@ const OrderSummaryPanel = ({
           const product = item.products; 
           const quantity = item.quantity;
           const price = item.unit_price ?? product?.base_price ?? 0;
-          const image = product?.thumbnail_url || product?.image || 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=200&q=80';
+          const image = product?.thumbnail_url;
 
           return (
             <div key={item.id} className="flex items-center gap-3">
