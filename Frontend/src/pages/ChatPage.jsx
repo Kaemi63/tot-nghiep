@@ -143,11 +143,7 @@ const addToWishlist = async (product) => {
   const handleOrderSuccess = () => {
     clearCart(); 
     fetchCart(); 
-
-    // 2. Chuyển hướng người dùng
     setActiveSection('orderHistory');
-
-    // 3. Thông báo
     toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
   };
   const fetchOrders = async () => {
