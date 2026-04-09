@@ -7,8 +7,10 @@ import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
 
 const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
+  // Cập nhật State: Thêm province, district, ward
   const [data, setData] = useState({ 
-    fullname: '', phone: '', email: '', address: '', 
+    fullname: '', phone: '', email: '', 
+    province: '', district: '', ward: '', address: '', 
     note: '', payment: 'COD', shipping: 'standard' 
   });
   const [loading, setLoading] = useState(false);
@@ -18,25 +20,42 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
   const grandTotal = subtotal + shippingFee;
 
   if (!cartItems.length && !orderResult) {
-    return <PageShell><EmptyState icon="🛒" title="Giỏ hàng trống" desc="Không có sản phẩm để thanh toán." action={{ label: 'Quay lại mua sắm', onClick: onBack }} /></PageShell>;
+    return (
+      <PageShell>
+        <EmptyState 
+          icon="🛒" 
+          title="Giỏ hàng trống" 
+          desc="Không có sản phẩm để thanh toán." 
+          action={{ label: 'Quay lại mua sắm', onClick: onBack }} 
+        />
+      </PageShell>
+    );
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Kiểm tra sơ bộ xem người dùng đã chọn đủ địa chỉ chưa
+    if (!data.province || !data.district || !data.ward) {
+      toast.error("Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Phường/Xã!");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Vui lòng đăng nhập lại");
 
+      // Sử dụng dữ liệu thực từ state thay vì hardcode
       const payload = {
         recipient_name: data.fullname,
         recipient_phone: data.phone,
         recipient_email: data.email,
-        shipping_address: data.address,
-        province: "Hồ Chí Minh", // Có thể cập nhật thêm field chọn tỉnh
-        district: "Quận 1",
-        ward: "Phường 1",
+        shipping_address: data.address, // Số nhà, tên đường
+        province: data.province,        // Tỉnh/Thành phố đã chọn
+        district: data.district,        // Quận/Huyện đã chọn
+        ward: data.ward,                // Phường/Xã đã chọn
         note: data.note,
         payment_method: data.payment.toLowerCase(),
         shipping_fee: shippingFee
@@ -46,7 +65,6 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
       setOrderResult(result);
       toast.success("Đặt hàng thành công!");
       
-      // Gọi hàm này để báo hiệu cho ChatPage cập nhật lại giỏ hàng
       onPlaceOrder?.(); 
     } catch (err) {
       toast.error(err.message);
@@ -64,7 +82,9 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
           Mã đơn hàng: <span className="font-bold text-indigo-600">#{orderResult.order_code}</span>
         </p>
         <p className="text-slate-400 text-xs mt-1">Chúng tôi sẽ liên hệ sớm để xác nhận đơn hàng.</p>
-        <button onClick={onBack} className="mt-6 px-6 py-3 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors">Tiếp tục mua sắm</button>
+        <button onClick={onBack} className="mt-6 px-6 py-3 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-colors">
+          Tiếp tục mua sắm
+        </button>
       </div>
     </PageShell>
   );
