@@ -21,14 +21,28 @@ export const reviewService = {
   getProductReviews: async (productId) => {
     try {
       const response = await axios.get(`${API_URL}/product/${productId}`);
-      return response.data; // Mảng các review kèm profiles và images
+      return response.data;
     } catch (error) {
       console.error("Lỗi lấy danh sách review:", error);
       return [];
     }
   },
 
-  // 3. Admin: Ẩn/Duyệt review
+  // 3. Cập nhật đánh giá (chỉnh sửa)
+  updateReview: async (token, reviewId, reviewData) => {
+    try {
+      const response = await axios.patch(
+        `${API_URL}/${reviewId}`,
+        reviewData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.error || "Không thể cập nhật đánh giá";
+    }
+  },
+
+  // 4. Admin: Ẩn/Duyệt review
   updateStatus: async (token, reviewId, status) => {
     try {
       const response = await axios.patch(

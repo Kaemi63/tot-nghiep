@@ -7,6 +7,14 @@ export const useReview = (productId) => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // Lấy user hiện tại để biết review nào là của mình
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setCurrentUserId(session.user.id);
+    });
+  }, []);
 
   const fetchReviews = async () => {
     if (!productId) return;
@@ -20,7 +28,7 @@ export const useReview = (productId) => {
     fetchReviews();
   }, [productId]);
 
-  // Hàm helper để upload ảnh lên Supabase Storage
+  // Upload ảnh lên Supabase Storage
   const uploadImages = async (files) => {
     const urls = [];
     for (const file of files) {
@@ -28,8 +36,8 @@ export const useReview = (productId) => {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `reviews/${fileName}`;
 
-      const { data, error } = await supabase.storage
-        .from('products') 
+      const { error } = await supabase.storage
+        .from('products')
         .upload(filePath, file);
 
       if (error) throw error;
@@ -37,30 +45,29 @@ export const useReview = (productId) => {
       const { data: { publicUrl } } = supabase.storage
         .from('products')
         .getPublicUrl(filePath);
-      
+
       urls.push(publicUrl);
     }
     return urls;
   };
 
+  // Gửi đánh giá mới
   const postReview = async (reviewData, imageFiles) => {
     setSubmitting(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Vui lòng đăng nhập để đánh giá");
 
-      // Bước 1: Upload ảnh nếu có
       let imageUrls = [];
       if (imageFiles && imageFiles.length > 0) {
         imageUrls = await uploadImages(imageFiles);
       }
 
-      // Bước 2: Gửi data + mảng URL ảnh lên Backend
       await reviewService.createReview(session.access_token, {
         ...reviewData,
-        images: imageUrls // Gửi mảng các string URL
+        images: imageUrls
       });
-      
+
       toast.success("Đánh giá thành công!");
       await fetchReviews();
       return true;
@@ -72,5 +79,41 @@ export const useReview = (productId) => {
     }
   };
 
-  return { reviews, loading, submitting, postReview, fetchReviews };
+  // Chỉnh sửa đánh giá đã có
+  const editReview = async (reviewId, reviewData, imageFiles) => {
+    setSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Vui lòng đăng nhập");
+
+      let imageUrls = [];
+      if (imageFiles && imageFiles.length > 0) {
+        imageUrls = await uploadImages(imageFiles);
+      }
+
+      await reviewService.updateReview(session.access_token, reviewId, {
+        ...reviewData,
+        ...(imageUrls.length > 0 && { images: imageUrls })
+      });
+
+      toast.success("Cập nhật đánh giá thành công!");
+      await fetchReviews();
+      return true;
+    } catch (error) {
+      toast.error(error.message || error);
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return {
+    reviews,
+    loading,
+    submitting,
+    currentUserId,
+    postReview,
+    editReview,
+    fetchReviews
+  };
 };

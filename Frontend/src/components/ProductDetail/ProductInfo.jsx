@@ -1,4 +1,3 @@
-// ProductInfo.jsx
 import React from 'react';
 import { fmt } from '../../utils/format.js';
 import { Stars } from '../../components/ShopUI/ShopUI.jsx';
@@ -8,9 +7,14 @@ const ProductInfo = ({
   selectedColor, 
   setSelectedColor, 
   selectedSize, 
-  setSelectedSize 
+  setSelectedSize,
+  avgRating,    // Rating thực tế tính từ reviews
+  reviewCount,  // Số lượng reviews thực tế
 }) => {
   if (!product) return null;
+
+  // Dùng avgRating từ reviews thực tế, nếu chưa có review thì hiển thị "Chưa có đánh giá"
+  const displayRating = avgRating ? parseFloat(avgRating) : null;
 
   const sizes = product.product_variants 
     ? [...new Set(product.product_variants.map(v => v.size).filter(Boolean))] 
@@ -39,10 +43,25 @@ const ProductInfo = ({
       )}
 
       <div className="flex flex-col gap-3">
+        {/* Rating đồng bộ với reviews thực tế */}
         <div className="flex items-center gap-3">
-          <Stars rating={product.rating ?? 4.8} size="md" />
-          <span className="text-sm text-slate-500 font-medium">{product.rating ?? 4.8} / 5</span>
+          {displayRating ? (
+            <>
+              <Stars rating={displayRating} size="md" />
+              <span className="text-sm text-slate-500 font-medium">
+                {avgRating} / 5
+              </span>
+              <span className="text-xs text-slate-400">
+                ({reviewCount} đánh giá)
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-slate-400 font-semibold italic">
+              Chưa có đánh giá nào
+            </span>
+          )}
         </div>
+
         <div className="text-4xl font-black text-indigo-600 tracking-tight">
           {fmt(product.base_price || 0)}
         </div>
@@ -69,7 +88,6 @@ const ProductInfo = ({
         </div>
       )}
 
-      {/* Lựa chọn Kích thước - Kiểm tra selectedSize để đổi Class */}
       {sizes.length > 0 && (
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Kích thước</p>

@@ -50,9 +50,8 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
         district: data.district,
         ward: data.ward,
         note: data.note,
-        payment_method: data.payment,
+        payment_method: data.payment.toLowerCase(),
         shipping_fee: shippingFee,
-        // --- 3. GỬI ID COUPON LÊN BACKEND ---
         coupon_id: appliedCoupon?.coupon_id || null 
       };
 
