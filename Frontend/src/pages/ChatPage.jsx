@@ -14,10 +14,11 @@ import { useCart } from '../hooks/useCart';
 import { useOrder } from '../hooks/useOrder';
 import { useNavigation } from '../hooks/useNavigation';
 import { useWishlist } from '../hooks/useWishlist';
+import { useAuthProfile } from '../hooks/useAuthProfile';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
-
+  const { userProfile, token} = useAuthProfile();
   // --- Hooks ---
   const {
     activeSection, setActiveSection,
@@ -63,6 +64,7 @@ const ChatPage = () => {
     <div className="flex h-screen w-full bg-white overflow-hidden">
       <Sidebar
         onNewChat={handleNewChat}
+        userProfile={userProfile}
         onOpenStore={openStoreHome}
         onOpenAccount={openMyAccount}
         onOpenCart={openCart}
@@ -75,7 +77,7 @@ const ChatPage = () => {
         onCategorySelect={openProductListing}
       />
       <main className="flex-1 flex flex-col relative">
-        {activeSection === 'chat' && <ChatWindow key={chatKey} />}
+        
 
         {activeSection === 'storeHome' && (
           <StoreHome
@@ -134,6 +136,13 @@ const ChatPage = () => {
 
         {activeSection === 'wishlist' && (
           <WishlistPage onAddToCart={addToCart} />
+        )}
+        {activeSection === 'chat' && (
+          <ChatWindow 
+            key={chatKey} 
+            token={token } 
+            userProfile={userProfile} 
+          />
         )}
 
         {activeSection === 'myAccount' && <MyAccount />}

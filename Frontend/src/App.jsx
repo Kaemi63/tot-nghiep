@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import MainPage from './pages/Main'; 
 import Login from './pages/Login';      
 import Register from './pages/Register'; 

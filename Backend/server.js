@@ -10,6 +10,7 @@ const cartRoutes = require('./routes/cart');
 const orderRoutes = require('./routes/orderRoutes');
 const couponRoutes = require('./routes/coupon');
 const reviewRoutes = require('./routes/review');
+const chatbotRoutes = require('./routes/chatbotRoutes');
 
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
@@ -25,35 +26,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
-//API Key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { messages } = req.body;
-    // Lấy tin nhắn
-    const lastMessage = messages[messages.length - 1].content;
-    
-    console.log("User hỏi:", lastMessage);
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    
-    // Thiết lập Header cho Streaming
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-
-    const result = await model.generateContentStream(lastMessage);
-
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
-      process.stdout.write(chunkText);
-      res.write(chunkText);
-    }
-
-    res.end();
-  } catch (error) {
-    console.error("Lỗi Backend:", error);
-    res.status(500).send(error.message);
-  }
-});
+app.use('/api/chat', chatbotRoutes);
 
 const checkSupabaseConnection = async () => {
   try {
