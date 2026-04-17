@@ -42,4 +42,9 @@ const checkSupabaseConnection = async () => {
 };
 checkSupabaseConnection();
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server AI đang chạy tại cổng ${PORT}`));
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`Server đang chạy tại cổng ${PORT}`));
+}
+
+module.exports = app;

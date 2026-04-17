@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
-    "@ai-sdk/react": "^3.0.136",
+    "@ai-sdk/react": "^3.0.167",
     "@supabase/supabase-js": "^2.101.0",
-    "ai": "^6.0.134",
+    "ai": "^6.0.165",
     "axios": "^1.14.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.577.0",

@@ -139,7 +139,7 @@ const ChatPage = () => {
         )}
         {activeSection === 'chat' && (
           <ChatWindow 
-            key={chatKey} 
+            // key={chatKey} 
             token={token } 
             userProfile={userProfile} 
           />

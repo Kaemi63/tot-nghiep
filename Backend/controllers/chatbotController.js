@@ -1,92 +1,132 @@
-const { streamText } = require('ai');
-const { createGoogleGenerativeAI } = require('@ai-sdk/google'); 
+const { streamText, convertToCoreMessages } = require('ai');
+const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const supabase = require('../config/supabaseClient');
 
+// Khởi tạo Google Gemini
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-exports.handleChat = async (req, res) => {
+/**
+ * 1. TẠO SESSION MỚI (Khi nhấn "New Chat")
+ */
+exports.createSession = async (req, res) => {
   try {
-    const { messages, sessionId } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id || null; // Lấy từ middleware auth nếu có
 
-    if (!sessionId) {
-      return res.status(400).json({ error: "Thiếu sessionId" });
-    }
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .insert({ 
+        user_id: userId,
+        status: 'active' 
+      })
+      .select()
+      .single();
 
-    // 1. Lưu tin nhắn User (Bọc try-catch để không làm sập AI nếu DB lỗi)
-    try {
-      const lastUserMessage = messages[messages.length - 1].content;
-      await supabase.from('chat_messages').insert({
-        session_id: sessionId,
-        sender_role: 'user',
-        content: lastUserMessage
-      });
-    } catch (dbErr) {
-      console.error("Lỗi lưu tin nhắn user:", dbErr.message);
-    }
-
-    // 2. Lấy FAQ (Bọc try-catch)
-    let faqData = [];
-    try {
-      const { data } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(5);
-      faqData = data || [];
-    } catch (faqErr) {
-      console.error("Lỗi lấy FAQ:", faqErr.message);
-    }
-
-    const systemInstruction = `Bạn là chuyên gia tư vấn thời trang Virtual Stylist. Kiến thức FAQ: ${JSON.stringify(faqData)}. Hãy trả lời tinh tế, tối giản.`;
-
-    // 3. Gọi AI với Model chuẩn 1.5-flash
-    const result = await streamText({
-      model: google('gemini-1.5-flash'), 
-      system: systemInstruction,
-      messages: messages,
-      onFinish: async ({ text }) => {
-        try {
-          await supabase.from('chat_messages').insert({
-            session_id: sessionId,
-            sender_role: 'bot',
-            content: text,
-          });
-        } catch (e) { console.error("Lỗi lưu tin nhắn bot:", e.message); }
-      },
-    });
-
-    return result.toDataStreamResponse();
-
+    if (error) throw error;
+    res.status(200).json(data);
   } catch (error) {
-    console.error("Vercel SDK Error:", error);
-    res.status(500).json({ error: "Lỗi kết nối AI: " + error.message });
+    console.error("Lỗi tạo session:", error.message);
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.createSession = async (req, res) => {
+/**
+ * 2. LẤY DANH SÁCH SESSION (Hiện ở Sidebar)
+ * Lấy tin nhắn đầu tiên của mỗi session để làm tiêu đề (Title)
+ */
+exports.getSessions = async (req, res) => {
   try {
+    const userId = req.user.id; // Lấy từ protect middleware
+
     const { data, error } = await supabase
       .from('chat_sessions')
-      .insert({ user_id: req.user.id })
-      .select()
-      .single();
+      .select(`
+        id,
+        started_at,
+        chat_messages(content)
+      `)
+      .eq('user_id', userId)
+      .order('started_at', { ascending: false });
+
     if (error) throw error;
-    res.json(data);
+
+    // Format lại để lấy tin nhắn đầu tiên làm title
+    const result = data.map(s => ({
+      id: s.id,
+      title: s.chat_messages[0]?.content?.substring(0, 35) || "Cuộc trò chuyện mới",
+      date: s.started_at
+    }));
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+/**
+ * 3. LẤY CHI TIẾT LỊCH SỬ TIN NHẮN (Khi bấm vào một Session cũ)
+ */
 exports.getHistory = async (req, res) => {
   try {
     const { sessionId } = req.params;
+
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true });
+
     if (error) throw error;
-    res.json(data);
+
+    // Map lại role cho đúng chuẩn Vercel AI SDK (user/assistant)
+    const history = data.map(msg => ({
+      id: msg.id,
+      role: msg.sender_role === 'bot' ? 'assistant' : 'user',
+      content: msg.content,
+      createdAt: msg.created_at
+    }));
+
+    res.json(history);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * 4. XỬ LÝ CHAT STREAMING & LƯU DB
+ */
+exports.handleChat = async (req, res) => {
+  try {
+    const { messages, sessionId } = req.body;
+
+    // 1. Lưu tin nhắn User vào DB trước
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'user') {
+      await supabase.from('chat_messages').insert({
+        session_id: sessionId,
+        sender_role: 'user',
+        content: lastMessage.content
+      });
+    }
+
+    // 2. Trả về stream của AI
+    const result = await streamText({
+      model: google('gemini-1.5-flash'),
+      messages: messages,
+      onFinish: async ({ text }) => {
+        // Lưu tin nhắn Bot sau khi AI trả lời xong
+        await supabase.from('chat_messages').insert({
+          session_id: sessionId,
+          sender_role: 'bot',
+          content: text,
+        });
+      },
+    });
+
+    return result.toDataStreamResponse();
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
