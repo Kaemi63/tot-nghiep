@@ -1,4 +1,3 @@
-// src/services/orderService.js
 const API_URL = 'http://localhost:3001/api/orders';
 
 export const orderService = {

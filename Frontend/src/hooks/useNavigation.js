@@ -1,4 +1,3 @@
-// src/hooks/useNavigation.js
 import { useState } from 'react';
 
 export const useNavigation = () => {
