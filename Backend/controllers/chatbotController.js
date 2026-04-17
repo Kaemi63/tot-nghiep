@@ -100,33 +100,85 @@ exports.handleChat = async (req, res) => {
   try {
     const { messages, sessionId } = req.body;
 
-    // 1. Lưu tin nhắn User vào DB trước
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage && lastMessage.role === 'user') {
-      await supabase.from('chat_messages').insert({
-        session_id: sessionId,
-        sender_role: 'user',
-        content: lastMessage.content
-      });
+    if (!sessionId) {
+      return res.status(400).json({ error: "Thiếu sessionId" });
     }
 
-    // 2. Trả về stream của AI
-    const result = await streamText({
-      model: google('gemini-1.5-flash'),
-      messages: messages,
-      onFinish: async ({ text }) => {
-        // Lưu tin nhắn Bot sau khi AI trả lời xong
+    // 1. Lưu tin nhắn User
+    try {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'user') {
         await supabase.from('chat_messages').insert({
           session_id: sessionId,
-          sender_role: 'bot',
-          content: text,
+          sender_role: 'user',
+          content: lastMessage.content
         });
-      },
-    });
+      }
+    } catch (dbErr) {
+      console.error("❌ Lỗi lưu tin nhắn User:", dbErr.message);
+    }
 
-    return result.toDataStreamResponse();
+    // 2. Lấy FAQ
+    let faqContext = "";
+    try {
+      const { data: faqs } = await supabase
+        .from('chatbot_faqs')
+        .select('question, answer')
+        .eq('is_active', true)
+        .limit(5);
+      if (faqs) {
+        faqContext = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n");
+      }
+    } catch (faqErr) {
+      console.error("⚠️ Lỗi lấy FAQ:", faqErr.message);
+    }
+
+    const systemInstruction = `Bạn là chuyên gia tư vấn thời trang Virtual Stylist. FAQ: ${faqContext}. Trả lời tiếng Việt, sang trọng.`;
+
+    // 3. Gọi AI
+    try {
+      const result = await streamText({
+        model: google('gemini-2.5-flash'), // Dùng đúng bản 2.5 của bạn
+        system: systemInstruction,
+        messages: messages,
+        onFinish: async ({ text }) => {
+          try {
+            await supabase.from('chat_messages').insert({
+              session_id: sessionId,
+              sender_role: 'bot',
+              content: text,
+            });
+          } catch (e) { console.error("❌ Lỗi lưu bot:", e.message); }
+        },
+      });
+
+      // --- PHẦN SỬA QUAN TRỌNG NHẤT: STREAM THỦ CÔNG ---
+      
+      // Thiết lập Header để trình duyệt hiểu đây là luồng dữ liệu (Stream)
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Transfer-Encoding', 'chunked');
+
+      // Lặp qua từng mẩu dữ liệu (chunk) mà AI trả về
+      for await (const textPart of result.textStream) {
+        // Gửi dữ liệu theo định dạng của Vercel AI SDK (0:"nội dung")
+        // Điều này đảm bảo Frontend (ChatWindow.jsx) đọc được dữ liệu
+        res.write(`0:${JSON.stringify(textPart)}\n`);
+      }
+
+      // Kết thúc luồng dữ liệu
+      res.end();
+
+    } catch (aiErr) {
+      console.error("💥 LỖI GEMINI AI:", aiErr.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "AI Service Error: " + aiErr.message });
+      }
+    }
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("🔥 LỖI HỆ THỐNG:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal Server Error: " + error.message });
+    }
   }
 };

@@ -93,9 +93,7 @@ const ChatWindow = ({ token, userProfile }) => {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        
-        // Vercel AI SDK stream format thường có các tiền tố như 0:", "e:"
-        // Chúng ta lọc lấy nội dung text thực tế (phần sau dấu ")
+
         const cleanedChunk = chunk.replace(/^0:|^e:|^d:|^a:|^m:|^/gm, '').replace(/"/g, '');
         accumulatedContent += cleanedChunk;
 
