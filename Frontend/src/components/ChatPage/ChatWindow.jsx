@@ -8,37 +8,49 @@ import 'katex/dist/katex.min.css';
 import { chatbotService } from '../../services/chatbotService'; 
 import toast from 'react-hot-toast';
 
-const ChatWindow = ({ token, userProfile }) => {
+const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
   // QUẢN LÝ STATE THỦ CÔNG (Thay thế cho useChat)
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  
+  const [sessionId, setSessionId] = useState(propSessionId);
   const scrollRef = useRef(null);
 
   // 1. Khởi tạo Session và Lịch sử
+  useEffect(() => {
+    // Cập nhật sessionId khi prop thay đổi (do click từ sidebar)
+    if (propSessionId) {
+      setSessionId(propSessionId);
+    }
+  }, [propSessionId]);
+
   useEffect(() => {
     const initChat = async () => {
       if (!token) return;
       try {
         setIsInitializing(true);
-        const session = await chatbotService.createSession(token);
-        if (session?.id) {
-          setSessionId(session.id);
-          const history = await chatbotService.getHistory(session.id, token);
-          if (history) setMessages(history);
+        
+        // Nếu không có sessionId (ví dụ: mới vào trang lần đầu), hãy tạo mới
+        let currentId = sessionId;
+        if (!currentId) {
+          const session = await chatbotService.createSession(token);
+          currentId = session.id;
+          setSessionId(currentId);
         }
+
+        // Lấy lịch sử của session hiện tại
+        const history = await chatbotService.getHistory(currentId, token);
+        if (history) setMessages(history);
+
       } catch (err) {
-        console.error("Lỗi load chat:", err);
-        toast.error("Lỗi kết nối máy chủ");
+        console.error(err);
       } finally {
         setIsInitializing(false);
       }
     };
     initChat();
-  }, [token]);
+  }, [token, sessionId]);
 
   // 2. Tự động cuộn
   useEffect(() => {
@@ -94,7 +106,17 @@ const ChatWindow = ({ token, userProfile }) => {
 
         const chunk = decoder.decode(value, { stream: true });
 
-        const cleanedChunk = chunk.replace(/^0:|^e:|^d:|^a:|^m:|^/gm, '').replace(/"/g, '');
+        // 1. Loại bỏ các tiền tố của Vercel AI SDK
+        let cleanedChunk = chunk.replace(/^0:|^e:|^d:|^a:|^m:|^/gm, '');
+
+        // 2. Xử lý chuỗi JSON nếu nó bị bọc trong dấu ngoặc kép " "
+        if (cleanedChunk.startsWith('"') && cleanedChunk.endsWith('"')) {
+            cleanedChunk = cleanedChunk.slice(1, -1);
+        }
+
+        // 3. QUAN TRỌNG: Chuyển đổi ký tự \n (dạng text) thành dấu xuống dòng thực sự
+        cleanedChunk = cleanedChunk.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+
         accumulatedContent += cleanedChunk;
 
         // Cập nhật tin nhắn Bot trong mảng messages

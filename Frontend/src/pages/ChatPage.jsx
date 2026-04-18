@@ -15,10 +15,13 @@ import { useOrder } from '../hooks/useOrder';
 import { useNavigation } from '../hooks/useNavigation';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuthProfile } from '../hooks/useAuthProfile';
+import { chatbotService } from '../services/chatbotService';
 
 const ChatPage = () => {
   const [chatKey, setChatKey] = useState(0);
   const { userProfile, token} = useAuthProfile();
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
   // --- Hooks ---
   const {
     activeSection, setActiveSection,
@@ -39,6 +42,21 @@ const ChatPage = () => {
       fetchOrderHistory();
     }
   }, [activeSection]);
+// Hàm fetch danh sách session từ DB
+  const fetchSessions = async () => {
+    if (!token) return;
+    try {
+      const data = await chatbotService.getSessions(token);
+      setSessions(data);
+    } catch (err) {
+      console.error("Lỗi lấy session:", err);
+    }
+  };
+
+  // Load session khi vào trang
+  useEffect(() => {
+    fetchSessions();
+  }, [token]);
 
   // Tính subtotal từ cartItems
   const subtotal = useMemo(() => {
@@ -48,11 +66,23 @@ const ChatPage = () => {
     }, 0);
   }, [cartItems]);
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     setActiveSection('chat');
-    setChatKey((prev) => prev + 1);
+    try {
+      const newSession = await chatbotService.createSession(token);
+      setActiveSessionId(newSession.id); // Set session mới làm active
+      setChatKey((prev) => prev + 1); // Reset ChatWindow
+      fetchSessions(); // Cập nhật lại list sidebar
+    } catch (err) {
+      toast.error("Không thể tạo chat mới");
+    }
   };
-
+  const handleSessionSelect = (id) => {
+    setActiveSessionId(id); // Thay đổi session đang chọn
+    setActiveSection('chat');
+    setChatKey((prev) => prev + 1); // Force render lại ChatWindow để load lịch sử mới
+  };
+  
   const handleOrderSuccess = () => {
     clearCart();
     fetchCart();
@@ -69,6 +99,9 @@ const ChatPage = () => {
         onOpenAccount={openMyAccount}
         onOpenCart={openCart}
         onOpenOrderHistory={openOrderHistory}
+        sessions={sessions} 
+        activeSessionId={activeSessionId}
+        onSessionSelect={handleSessionSelect}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         onOpenWishlist={openWishlist}
@@ -139,9 +172,10 @@ const ChatPage = () => {
         )}
         {activeSection === 'chat' && (
           <ChatWindow 
-            // key={chatKey} 
+            key={`${chatKey}-${activeSessionId}`}
             token={token } 
             userProfile={userProfile} 
+            sessionId={activeSessionId}
           />
         )}
 

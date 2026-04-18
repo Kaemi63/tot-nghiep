@@ -99,86 +99,127 @@ exports.getHistory = async (req, res) => {
 exports.handleChat = async (req, res) => {
   try {
     const { messages, sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: "Thiếu sessionId" });
 
-    if (!sessionId) {
-      return res.status(400).json({ error: "Thiếu sessionId" });
-    }
-
-    // 1. Lưu tin nhắn User
+    // 1. Lưu tin nhắn User (Giữ nguyên)
     try {
       const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'user') {
+      if (lastMessage?.role === 'user') {
         await supabase.from('chat_messages').insert({
-          session_id: sessionId,
-          sender_role: 'user',
-          content: lastMessage.content
+          session_id: sessionId, sender_role: 'user', content: lastMessage.content
         });
       }
-    } catch (dbErr) {
-      console.error("❌ Lỗi lưu tin nhắn User:", dbErr.message);
+    } catch (e) { console.error("Lỗi lưu user:", e.message); }
+
+    // 2. THU THẬP DỮ LIỆU ĐA CHIỀU (Multi-table Context)
+    let storeContext = "";
+    try {
+      // A. Lấy thông tin người dùng (Để cá nhân hóa theo giới tính)
+      const { data: sessionData } = await supabase.from('chat_sessions').select('user_id').eq('id', sessionId).single();
+      const userId = sessionData?.user_id;
+      
+      let userContext = "";
+      if (userId) {
+        const { data: profile } = await supabase.from('profiles').select('fullname, gender').eq('id', userId).single();
+        if (profile) {
+          userContext = `Khách hàng là ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'không rõ giới tính'}, tên là ${profile.fullname}.`;
+        }
+      }
+
+      // B. Lấy sản phẩm + Danh mục + Thông số kỹ thuật (Specifications)
+      // Chúng ta lấy sản phẩm và join với bảng category
+      const { data: products } = await supabase
+        .from('products')
+        .select(`
+          name, base_price, 
+          categories(name),
+          product_specifications(spec_name, spec_value),
+          product_variants(color, size)
+        `)
+        .eq('status', 'active')
+        .limit(30);
+
+      const prodDetails = products?.map(p => {
+        const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(', ') || 'Không có thông số';
+        const variants = p.product_variants?.map(v => `${v.color} (${v.size})`).join(', ') || 'Liên hệ để biết size/màu';
+        return `- ${p.name} | Giá: ${p.base_price}đ | Loại: ${p.categories?.name} | Chi tiết: ${specs} | Màu/Size: ${variants}`;
+      }).join('\n');
+
+      // C. Lấy các đánh giá tích cực (Reviews) để AI dùng làm lời chứng thực
+      const { data: topReviews } = await supabase
+        .from('reviews')
+        .select('comment, rating, products(name)')
+        .eq('status', 'approved')
+        .gte('rating', 4)
+        .limit(5);
+      
+      const reviewContext = topReviews?.map(r => `Khách hàng khen ${r.products?.name}: "${r.comment}" (${r.rating} sao)`).join('\n');
+
+      storeContext = `
+        THÔNG TIN KHÁCH HÀNG: ${userContext}
+        DANH SÁCH SẢN PHẨM CHI TIẾT:
+        ${prodDetails}
+        
+        ĐÁNH GIÁ TỪ KHÁCH HÀNG KHÁC:
+        ${reviewContext}
+      `;
+    } catch (err) {
+      console.error("⚠️ Lỗi thu thập dữ liệu store:", err.message);
     }
 
-    // 2. Lấy FAQ
+    // 3. Lấy FAQ (Giữ nguyên)
     let faqContext = "";
     try {
-      const { data: faqs } = await supabase
-        .from('chatbot_faqs')
-        .select('question, answer')
-        .eq('is_active', true)
-        .limit(5);
-      if (faqs) {
-        faqContext = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n");
-      }
-    } catch (faqErr) {
-      console.error("⚠️ Lỗi lấy FAQ:", faqErr.message);
-    }
+      const { data: faqs } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(10);
+      faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
+    } catch (e) {}
 
-    const systemInstruction = `Bạn là chuyên gia tư vấn thời trang Virtual Stylist. FAQ: ${faqContext}. Trả lời tiếng Việt, sang trọng.`;
+    // 4. XÂY DỰNG PROMPT "SIÊU TRỢ LÝ"
+    const systemInstruction = `
+      Bạn là Virtual Stylist cao cấp của FSA. Bạn không chỉ là chatbot, bạn là một chuyên gia thời trang.
+      
+      DỮ LIỆU CỬA HÀNG (SẢN PHẨM, GIÁ, CHẤT LIỆU, SIZE):
+      ${storeContext}
+      
+      KIẾN THỨC FAQ:
+      ${faqContext}
+      
+      NHIỆM VỤ CỦA BẠN:
+      1. CÁ NHÂN HÓA: Dựa vào thông tin khách hàng (giới tính), hãy gợi ý sản phẩm phù hợp. Nếu khách là Nam, đừng gợi ý váy nữ.
+      2. CHI TIẾT: Khi giới thiệu sản phẩm, hãy nêu rõ chất liệu (từ specifications) và các màu sắc/size hiện có (từ variants).
+      3. THUYẾT PHỤC: Sử dụng các đánh giá thực tế từ khách hàng khác để tăng niềm tin.
+      4. TƯ VẤN PHỐI ĐỒ: Nếu khách hỏi về một sản phẩm, hãy gợi ý thêm 1-2 sản phẩm khác trong store để phối thành một bộ (Outfit).
+      5. PHONG CÁCH: Trả lời sang trọng, tinh tế, lịch sự (Sử dụng: Quý khách, Tinh tế, Đẳng cấp).
+      6. ĐỊNH DẠNG: Sử dụng dấu xuống dòng, gạch đầu dòng để câu trả lời rõ ràng, không viết thành khối văn bản.
+      7. HẠN CHẾ: Nếu khách hỏi về sản phẩm không có trong store, hãy lịch sự từ chối và gợi ý họ xem qua các sản phẩm khác phù hợp. 
+      Đừng bao giờ nói rằng bạn không biết hoặc không có thông tin. Hãy luôn cố gắng đưa ra câu trả lời dựa trên dữ liệu bạn có.
+      Đừng bao giờ nói về size hay mau không có sẵn, hãy gợi ý khách liên hệ để biết thêm chi tiết. 
+      Đừng bao giờ đề cập đến việc bạn là một AI, hãy luôn đóng vai một stylist chuyên nghiệp.
+    `;
 
-    // 3. Gọi AI
+    // 5. Gọi AI (Manual Stream cho Express)
     try {
       const result = await streamText({
-        model: google('gemini-2.5-flash'), // Dùng đúng bản 2.5 của bạn
+        model: google('gemini-2.5-flash'),
         system: systemInstruction,
         messages: messages,
         onFinish: async ({ text }) => {
-          try {
-            await supabase.from('chat_messages').insert({
-              session_id: sessionId,
-              sender_role: 'bot',
-              content: text,
-            });
-          } catch (e) { console.error("❌ Lỗi lưu bot:", e.message); }
+          await supabase.from('chat_messages').insert({
+            session_id: sessionId, sender_role: 'bot', content: text,
+          });
         },
       });
 
-      // --- PHẦN SỬA QUAN TRỌNG NHẤT: STREAM THỦ CÔNG ---
-      
-      // Thiết lập Header để trình duyệt hiểu đây là luồng dữ liệu (Stream)
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
-
-      // Lặp qua từng mẩu dữ liệu (chunk) mà AI trả về
       for await (const textPart of result.textStream) {
-        // Gửi dữ liệu theo định dạng của Vercel AI SDK (0:"nội dung")
-        // Điều này đảm bảo Frontend (ChatWindow.jsx) đọc được dữ liệu
         res.write(`0:${JSON.stringify(textPart)}\n`);
       }
-
-      // Kết thúc luồng dữ liệu
       res.end();
-
     } catch (aiErr) {
-      console.error("💥 LỖI GEMINI AI:", aiErr.message);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "AI Service Error: " + aiErr.message });
-      }
+      res.status(500).json({ error: aiErr.message });
     }
-
   } catch (error) {
-    console.error("🔥 LỖI HỆ THỐNG:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Internal Server Error: " + error.message });
-    }
+    res.status(500).json({ error: error.message });
   }
 };
