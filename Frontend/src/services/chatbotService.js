@@ -19,8 +19,15 @@ export const chatbotService = {
     const response = await axios.get(`${API_URL}/history/${sessionId}`, getAuthHeaders(token));
     return response.data;
   },
+  // 3. Xóa một session
+  deleteSession: async (sessionId, token) => {
+    const response = await axios.delete(`${API_URL}/session/${sessionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  },
 
-  // 3. Tạo cuộc hội thoại mới
+  // 4. Tạo cuộc hội thoại mới
   createSession: async (token) => {
     const response = await axios.post(`${API_URL}/session`, {}, getAuthHeaders(token));
     return response.data;

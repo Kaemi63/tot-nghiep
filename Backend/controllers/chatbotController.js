@@ -7,9 +7,7 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-/**
- * 1. TẠO SESSION MỚI (Khi nhấn "New Chat")
- */
+// 1. TẠO CUỘC HỘI THOẠI MỚI
 exports.createSession = async (req, res) => {
   try {
     const userId = req.user?.id || null; // Lấy từ middleware auth nếu có
@@ -31,10 +29,7 @@ exports.createSession = async (req, res) => {
   }
 };
 
-/**
- * 2. LẤY DANH SÁCH SESSION (Hiện ở Sidebar)
- * Lấy tin nhắn đầu tiên của mỗi session để làm tiêu đề (Title)
- */
+// 2. LẤY DANH SÁCH CÁC CUỘC HỘI THOẠI (CHO SIDEBAR)
 exports.getSessions = async (req, res) => {
   try {
     const userId = req.user.id; // Lấy từ protect middleware
@@ -64,9 +59,7 @@ exports.getSessions = async (req, res) => {
   }
 };
 
-/**
- * 3. LẤY CHI TIẾT LỊCH SỬ TIN NHẮN (Khi bấm vào một Session cũ)
- */
+// 3. LẤY LỊCH SỬ TIN NHẮN CỦA 1 SESSION (ĐỔ VÀO KHUNG CHAT)
 exports.getHistory = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -93,9 +86,35 @@ exports.getHistory = async (req, res) => {
   }
 };
 
-/**
- * 4. XỬ LÝ CHAT STREAMING & LƯU DB
- */
+//4. XÓA CUỘC HỘI THOẠI
+exports.deleteSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id; // Lấy từ middleware protect
+
+    // Kiểm tra xem session này có thuộc về user này không để tránh xóa nhầm của người khác
+    const { data: session } = await supabase
+      .from('chat_sessions')
+      .select('user_id')
+      .eq('id', sessionId)
+      .single();
+
+    if (!session || session.user_id !== userId) {
+      return res.status(403).json({ error: "Bạn không có quyền xóa cuộc hội thoại này" });
+    }
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .delete()
+      .eq('id', sessionId);
+
+    if (error) throw error;
+    res.json({ message: "Đã xóa cuộc trò chuyện thành công" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+// 5. XỬ LÝ TIN NHẮN MỚI, GỌI AI, TRẢ VỀ STREAM
 exports.handleChat = async (req, res) => {
   try {
     const { messages, sessionId } = req.body;

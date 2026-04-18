@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown } from "lucide-react";
+import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2 } from "lucide-react";
 
 const Sidebar = ({ 
   onNewChat, 
@@ -9,9 +9,10 @@ const Sidebar = ({
   onOpenOrderHistory, 
   onOpenWishlist, 
   userProfile,
-  sessions = [],          // Danh sách các session từ chatbotService.getSessions()
-  activeSessionId,        // ID của session đang được chọn
-  onSessionSelect,        // Hàm xử lý khi click vào một session
+  sessions = [],
+  activeSessionId,
+  onSessionSelect, 
+  onDeleteSession,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true); // Trạng thái đóng/mở list lịch sử
@@ -53,12 +54,12 @@ const Sidebar = ({
         </nav>
       </div>
 
-      {/* MIDDLE SIDEBAR: Lịch sử tin nhắn (Gemini Style) */}
+      {/* MIDDLE SIDEBAR: Lịch sử tin nhắn */}
       {!collapsed && (
         <div className="flex-1 overflow-y-auto px-4 mb-4">
-          <div className="flex items-center justify-between px-2 mb-2 group cursor-pointer" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
+          <div className="flex items-center justify-between px-2 mb-2 cursor-pointer" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <MessageSquare size={14} /> Lịch sử cuộc trò chuyện
+              <MessageSquare size={14} /> Gần đây
             </span>
             {isHistoryOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </div>
@@ -69,18 +70,37 @@ const Sidebar = ({
                 <p className="text-xs text-slate-400 px-2 py-2 italic">Chưa có cuộc hội thoại nào</p>
               ) : (
                 sessions.map((session) => (
-                  <button 
+                  <div 
                     key={session.id} 
-                    onClick={() => onSessionSelect(session.id)}
-                    className={`flex items-center gap-3 w-full p-3 rounded-xl text-left transition-all text-sm ${
+                    className={`group flex items-center justify-between w-full p-2 rounded-xl transition-all ${
                       activeSessionId === session.id 
-                      ? 'bg-indigo-50 text-indigo-700 font-medium' 
+                      ? 'bg-indigo-50 text-indigo-700' 
                       : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    <MessageSquare size={16} className={activeSessionId === session.id ? 'text-indigo-600' : 'text-slate-400'} />
-                    <span className="truncate">{session.title}</span>
-                  </button>
+                    {/* Nút chọn Session */}
+                    <button 
+                      onClick={() => onSessionSelect(session.id)}
+                      className="flex items-center gap-3 flex-1 text-left truncate"
+                    >
+                      <MessageSquare size={16} className={activeSessionId === session.id ? 'text-indigo-600' : 'text-slate-400'} />
+                      <span className={`text-sm truncate ${activeSessionId === session.id ? 'font-medium' : ''}`}>
+                        {session.title}
+                      </span>
+                    </button>
+
+                    {/* NÚT XÓA: Chỉ hiện khi hover vào dòng (group-hover) */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Ngăn chặn sự kiện click vào button gây chọn session
+                        onDeleteSession(session.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 transition-all rounded-md hover:bg-red-50"
+                      title="Xóa cuộc hội thoại"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 ))
               )}
             </div>

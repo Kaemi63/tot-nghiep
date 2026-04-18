@@ -77,6 +77,29 @@ const ChatPage = () => {
       toast.error("Không thể tạo chat mới");
     }
   };
+
+  const handleDeleteSession = async (sessionId) => {
+  if (!window.confirm("Bạn có chắc chắn muốn xóa cuộc hội thoại này không?")) return;
+
+  try {
+    await chatbotService.deleteSession(sessionId, token);
+    toast.success("Đã xóa cuộc trò chuyện");
+
+    // 1. Cập nhật lại danh sách sessions (loại bỏ session vừa xóa khỏi state)
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+
+    // 2. Nếu session bị xóa là session đang active, hãy reset về null
+    if (activeSessionId === sessionId) {
+      setActiveSessionId(null);
+      setActiveSection('chat'); // Quay về màn hình chào của chat
+      setChatKey((prev) => prev + 1);
+    }
+  } catch (err) {
+    toast.error("Không thể xóa cuộc trò chuyện");
+    console.error(err);
+  }
+};
+
   const handleSessionSelect = (id) => {
     setActiveSessionId(id); // Thay đổi session đang chọn
     setActiveSection('chat');
@@ -89,6 +112,7 @@ const ChatPage = () => {
     setActiveSection('orderHistory');
     toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
   };
+  
 
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden">
@@ -101,6 +125,7 @@ const ChatPage = () => {
         onOpenOrderHistory={openOrderHistory}
         sessions={sessions} 
         activeSessionId={activeSessionId}
+        onDeleteSession={handleDeleteSession}
         onSessionSelect={handleSessionSelect}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
