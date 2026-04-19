@@ -12,6 +12,7 @@ const EMPTY_PRODUCT = {
   name: '', slug: '', short_description: '', description: '',
   thumbnail_url: '', base_price: 0, status: 'active', is_featured: false,
   category_id: '', brand_id: '',
+  size_type: 'clothes',
   product_variants: [],
   product_images: [],
   product_specifications: []
@@ -51,8 +52,8 @@ const AdminProductsPage = () => {
     await deleteProduct(id);
   };
 
-  const handleSave = async () => {
-    const success = await saveProduct(editingProduct);
+  const handleSave = async (productData) => {
+    const success = await saveProduct(productData);
     if (success) setModalOpen(false);
   };
 
@@ -101,7 +102,6 @@ const AdminProductsPage = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         product={editingProduct}
-        setProduct={setEditingProduct}
         categories={categories}
         brands={brands}
         onSave={handleSave}
