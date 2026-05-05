@@ -9,7 +9,6 @@ import { chatbotService } from '../../services/chatbotService';
 import toast from 'react-hot-toast';
 
 const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
-  // QUẢN LÝ STATE THỦ CÔNG (Thay thế cho useChat)
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

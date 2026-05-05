@@ -120,7 +120,7 @@ exports.handleChat = async (req, res) => {
     const { messages, sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Thiếu sessionId" });
 
-    // 1. Lưu tin nhắn User (Giữ nguyên)
+    // 1. Lưu tin nhắn User
     try {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.role === 'user') {
@@ -130,10 +130,9 @@ exports.handleChat = async (req, res) => {
       }
     } catch (e) { console.error("Lỗi lưu user:", e.message); }
 
-    // 2. THU THẬP DỮ LIỆU ĐA CHIỀU (Multi-table Context)
+    // 2. THU THẬP DỮ LIỆU (Dùng cấu trúc bạn thích)
     let storeContext = "";
     try {
-      // A. Lấy thông tin người dùng (Để cá nhân hóa theo giới tính)
       const { data: sessionData } = await supabase.from('chat_sessions').select('user_id').eq('id', sessionId).single();
       const userId = sessionData?.user_id;
       
@@ -141,12 +140,10 @@ exports.handleChat = async (req, res) => {
       if (userId) {
         const { data: profile } = await supabase.from('profiles').select('fullname, gender').eq('id', userId).single();
         if (profile) {
-          userContext = `Khách hàng là ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'không rõ giới tính'}, tên là ${profile.fullname}.`;
+          userContext = `Khách hàng: ${profile.fullname} | Giới tính: ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'Khác'}`;
         }
       }
 
-      // B. Lấy sản phẩm + Danh mục + Thông số kỹ thuật (Specifications)
-      // Chúng ta lấy sản phẩm và join với bảng category
       const { data: products } = await supabase
         .from('products')
         .select(`
@@ -158,13 +155,13 @@ exports.handleChat = async (req, res) => {
         .eq('status', 'active')
         .limit(30);
 
-      const prodDetails = products?.map(p => {
-        const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(', ') || 'Không có thông số';
-        const variants = p.product_variants?.map(v => `${v.color} (${v.size})`).join(', ') || 'Liên hệ để biết size/màu';
-        return `- ${p.name} | Giá: ${p.base_price}đ | Loại: ${p.categories?.name} | Chi tiết: ${specs} | Màu/Size: ${variants}`;
+      // SỬA Ở ĐÂY: Tạo bảng tra cứu chặt chẽ hơn để AI không nhầm
+      const prodDetails = products?.map((p, index) => {
+        const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
+        const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
+        return `[SP${index + 1}] Tên: ${p.name} || Giá: ${p.base_price}đ || Loại: ${p.categories?.name} || Đặc điểm: ${specs} || Kho: ${variants}`;
       }).join('\n');
 
-      // C. Lấy các đánh giá tích cực (Reviews) để AI dùng làm lời chứng thực
       const { data: topReviews } = await supabase
         .from('reviews')
         .select('comment, rating, products(name)')
@@ -172,51 +169,47 @@ exports.handleChat = async (req, res) => {
         .gte('rating', 4)
         .limit(5);
       
-      const reviewContext = topReviews?.map(r => `Khách hàng khen ${r.products?.name}: "${r.comment}" (${r.rating} sao)`).join('\n');
+      const reviewContext = topReviews?.map(r => `Khách hàng khen ${r.products?.name}: "${r.comment}"`).join('\n');
 
       storeContext = `
-        THÔNG TIN KHÁCH HÀNG: ${userContext}
-        DANH SÁCH SẢN PHẨM CHI TIẾT:
+        ${userContext}
+        --- BẢNG TRA CỨU SẢN PHẨM CHI TIẾT ---
         ${prodDetails}
         
-        ĐÁNH GIÁ TỪ KHÁCH HÀNG KHÁC:
+        --- ĐÁNH GIÁ THỰC TẾ ---
         ${reviewContext}
       `;
     } catch (err) {
       console.error("⚠️ Lỗi thu thập dữ liệu store:", err.message);
     }
 
-    // 3. Lấy FAQ (Giữ nguyên)
+    // 3. Lấy FAQ
     let faqContext = "";
     try {
       const { data: faqs } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(10);
       faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
     } catch (e) {}
 
-    // 4. XÂY DỰNG PROMPT "SIÊU TRỢ LÝ"
+    // 4. PROMPT SIÊU CHẶT CHẼ (Fix lỗi nhầm size/màu)
     const systemInstruction = `
-      Bạn là Virtual Stylist cao cấp của FSA. Bạn không chỉ là chatbot, bạn là một chuyên gia thời trang.
+      Bạn là Virtual Stylist cao cấp của FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
       
-      DỮ LIỆU CỬA HÀNG (SẢN PHẨM, GIÁ, CHẤT LIỆU, SIZE):
+      DỮ LIỆU CỬA HÀNG:
       ${storeContext}
       
       KIẾN THỨC FAQ:
       ${faqContext}
       
-      NHIỆM VỤ CỦA BẠN:
-      1. CÁ NHÂN HÓA: Dựa vào thông tin khách hàng (giới tính), hãy gợi ý sản phẩm phù hợp. Nếu khách là Nam, đừng gợi ý váy nữ.
-      2. CHI TIẾT: Khi giới thiệu sản phẩm, hãy nêu rõ chất liệu (từ specifications) và các màu sắc/size hiện có (từ variants).
-      3. THUYẾT PHỤC: Sử dụng các đánh giá thực tế từ khách hàng khác để tăng niềm tin.
-      4. TƯ VẤN PHỐI ĐỒ: Nếu khách hỏi về một sản phẩm, hãy gợi ý thêm 1-2 sản phẩm khác trong store để phối thành một bộ (Outfit).
-      5. PHONG CÁCH: Trả lời sang trọng, tinh tế, lịch sự (Sử dụng: Quý khách, Tinh tế, Đẳng cấp).
-      6. ĐỊNH DẠNG: Sử dụng dấu xuống dòng, gạch đầu dòng để câu trả lời rõ ràng, không viết thành khối văn bản.
-      7. HẠN CHẾ: Nếu khách hỏi về sản phẩm không có trong store, hãy lịch sự từ chối và gợi ý họ xem qua các sản phẩm khác phù hợp. 
-      Đừng bao giờ nói rằng bạn không biết hoặc không có thông tin. Hãy luôn cố gắng đưa ra câu trả lời dựa trên dữ liệu bạn có.
-      Đừng bao giờ nói về size hay mau không có sẵn, hãy gợi ý khách liên hệ để biết thêm chi tiết. 
-      Đừng bao giờ đề cập đến việc bạn là một AI, hãy luôn đóng vai một stylist chuyên nghiệp.
+      QUY TẮC BẮT BUỘC:
+      1. TRA CỨU CHÍNH XÁC: Khi khách hỏi về sản phẩm, bạn PHẢI tìm đúng dòng [SPx] của sản phẩm đó. Tuyệt đối không lấy thông tin Màu/Size của sản phẩm khác gán cho sản phẩm này.
+      2. TRUNG THỰC: Nếu sản phẩm khách hỏi không có trong danh sách, hãy lịch sự báo là "Hiện mẫu này chưa có sẵn trong hệ thống" thay vì tự chế thông tin.
+      3. CÁ NHÂN HÓA: Dựa vào giới tính khách hàng để gợi ý đồ phù hợp (Nam không gợi ý váy nữ).
+      4. PHONG CÁCH: Sang trọng, tinh tế, gọi khách là "Quý khách".
+      5. ĐỊNH DẠNG: Sử dụng gạch đầu dòng, xuống dòng rõ ràng.
+      6. ĐÓNG VAI: Bạn là Stylist chuyên nghiệp, không bao giờ nói mình là AI.
     `;
 
-    // 5. Gọi AI (Manual Stream cho Express)
+    // 5. Gọi AI (Manual Stream)
     try {
       const result = await streamText({
         model: google('gemini-2.5-flash'),
@@ -231,8 +224,10 @@ exports.handleChat = async (req, res) => {
 
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
+
       for await (const textPart of result.textStream) {
-        res.write(`0:${JSON.stringify(textPart)}\n`);
+        const safeText = textPart.replace(/\n/g, '');
+        res.write(`0:${safeText}\n`);
       }
       res.end();
     } catch (aiErr) {
