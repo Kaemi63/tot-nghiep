@@ -22,6 +22,7 @@ const ChatPage = () => {
   const { userProfile, token} = useAuthProfile();
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   // --- Hooks ---
   const {
     activeSection, setActiveSection,
@@ -55,8 +56,20 @@ const ChatPage = () => {
 
   // Load session khi vào trang
   useEffect(() => {
-    fetchSessions();
+    if (token) {
+      fetchSessions();
+    } else {
+      setSessions([]);
+      setActiveSessionId(null);
+    }
   }, [token]);
+
+  // Tự động chọn session đầu tiên nếu chưa có session active
+  useEffect(() => {
+    if (sessions.length > 0 && !activeSessionId) {
+      setActiveSessionId(sessions[0].id);
+    }
+  }, [sessions, activeSessionId]);
 
   // Tính subtotal từ cartItems
   const subtotal = useMemo(() => {
@@ -67,6 +80,8 @@ const ChatPage = () => {
   }, [cartItems]);
 
   const handleNewChat = async () => {
+    if (isCreatingChat) return; // Prevent multiple clicks
+    setIsCreatingChat(true);
     setActiveSection('chat');
     try {
       const newSession = await chatbotService.createSession(token);
@@ -75,6 +90,8 @@ const ChatPage = () => {
       fetchSessions(); // Cập nhật lại list sidebar
     } catch (err) {
       toast.error("Không thể tạo chat mới");
+    } finally {
+      setIsCreatingChat(false);
     }
   };
 
@@ -85,8 +102,8 @@ const ChatPage = () => {
     await chatbotService.deleteSession(sessionId, token);
     toast.success("Đã xóa cuộc trò chuyện");
 
-    // 1. Cập nhật lại danh sách sessions (loại bỏ session vừa xóa khỏi state)
-    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    // Fetch lại danh sách sessions từ server để đảm bảo đồng bộ
+    await fetchSessions();
 
     // 2. Nếu session bị xóa là session đang active, hãy reset về null
     if (activeSessionId === sessionId) {
@@ -131,6 +148,7 @@ const ChatPage = () => {
         onSectionChange={setActiveSection}
         onOpenWishlist={openWishlist}
         isStore={activeSection !== 'chat'}
+        isCreatingChat={isCreatingChat}
         showCategories={activeSection !== 'chat' && activeSection !== 'myAccount'}
         onCategorySelect={openProductListing}
       />

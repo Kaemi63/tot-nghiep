@@ -13,6 +13,7 @@ const Sidebar = ({
   activeSessionId,
   onSessionSelect, 
   onDeleteSession,
+  isCreatingChat = false,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true); // Trạng thái đóng/mở list lịch sử
@@ -30,9 +31,15 @@ const Sidebar = ({
         </div>
 
         <nav className="space-y-2">
-          <button onClick={onNewChat} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} w-full ${collapsed ? 'p-2' : 'p-4'} rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:bg-slate-50 transition-all group`}>
+          <button 
+            onClick={onNewChat} 
+            disabled={isCreatingChat}
+            className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} w-full ${collapsed ? 'p-2' : 'p-4'} rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:bg-slate-50 transition-all group ${isCreatingChat ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
             <MessageSquarePlus size={20} className="text-indigo-600" />
-            {!collapsed && <span className="font-bold text-[0.95rem] text-slate-700">Cuộc trò chuyện mới</span>}
+            {!collapsed && <span className="font-bold text-[0.95rem] text-slate-700">
+              {isCreatingChat ? 'Đang tạo...' : 'Cuộc trò chuyện mới'}
+            </span>}
           </button>
           
           <button onClick={onOpenStore} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} w-full ${collapsed ? 'p-2' : 'p-4'} rounded-2xl hover:bg-slate-100 transition-all text-slate-500 hover:text-slate-800`}>

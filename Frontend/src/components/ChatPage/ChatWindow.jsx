@@ -17,9 +17,8 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
   const [sessionId, setSessionId] = useState(propSessionId);
   const scrollRef = useRef(null);
 
-  // 1. Khởi tạo Session và Lịch sử
+  // 1. Khởi tạo lịch sử khi có sessionId từ ChatPage
   useEffect(() => {
-    // Cập nhật sessionId khi prop thay đổi (do click từ sidebar)
     if (propSessionId) {
       setSessionId(propSessionId);
     }
@@ -27,22 +26,20 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
 
   useEffect(() => {
     const initChat = async () => {
-      if (!token) return;
+      if (!token) {
+        setIsInitializing(false);
+        return;
+      }
+
+      if (!propSessionId) {
+        setIsInitializing(false);
+        return;
+      }
+
       try {
         setIsInitializing(true);
-        
-        // Nếu không có sessionId (ví dụ: mới vào trang lần đầu), hãy tạo mới
-        let currentId = sessionId;
-        if (!currentId) {
-          const session = await chatbotService.createSession(token);
-          currentId = session.id;
-          setSessionId(currentId);
-        }
-
-        // Lấy lịch sử của session hiện tại
-        const history = await chatbotService.getHistory(currentId, token);
+        const history = await chatbotService.getHistory(propSessionId, token);
         if (history) setMessages(history);
-
       } catch (err) {
         console.error(err);
       } finally {
@@ -50,7 +47,7 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
       }
     };
     initChat();
-  }, [token, sessionId]);
+  }, [token, propSessionId]);
 
   // 2. Tự động cuộn
   useEffect(() => {

@@ -93,24 +93,45 @@ exports.deleteSession = async (req, res) => {
     const userId = req.user.id; // Lấy từ middleware protect
 
     // Kiểm tra xem session này có thuộc về user này không để tránh xóa nhầm của người khác
-    const { data: session } = await supabase
+    const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
       .select('user_id')
       .eq('id', sessionId)
       .single();
 
+    if (sessionError) {
+      console.error('Session lookup error:', sessionError);
+      return res.status(500).json({ error: `Lỗi khi kiểm tra session: ${sessionError.message}` });
+    }
+    
     if (!session || session.user_id !== userId) {
       return res.status(403).json({ error: "Bạn không có quyền xóa cuộc hội thoại này" });
     }
 
-    const { error } = await supabase
+    // Xóa tất cả tin nhắn thuộc session trước
+    const { error: messagesError } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('session_id', sessionId);
+
+    if (messagesError) {
+      console.error('Messages delete error:', messagesError);
+      return res.status(500).json({ error: `Lỗi khi xóa tin nhắn: ${messagesError.message}` });
+    }
+
+    const { error: deleteError } = await supabase
       .from('chat_sessions')
       .delete()
       .eq('id', sessionId);
 
-    if (error) throw error;
+    if (deleteError) {
+      console.error('Session delete error:', deleteError);
+      return res.status(500).json({ error: `Lỗi khi xóa session: ${deleteError.message}` });
+    }
+
     res.json({ message: "Đã xóa cuộc trò chuyện thành công" });
   } catch (error) {
+    console.error("Delete session error:", error);
     res.status(500).json({ error: error.message });
   }
 };
