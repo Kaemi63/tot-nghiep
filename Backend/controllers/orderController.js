@@ -188,3 +188,66 @@ exports.getMyOrders = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Hàm lấy tất cả đơn hàng cho admin
+exports.getAllOrders = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_status_histories (*),
+        order_items (*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Hàm cập nhật trạng thái đơn hàng cho admin
+exports.updateOrderStatus = async (req, res) => {
+  const { orderId } = req.params;
+  const { status, note } = req.body;
+  const adminId = req.user.id;
+
+  try {
+    const tryUpdateField = async (field) => {
+      const payload = { [field]: status };
+      const { data, error } = await supabase
+        .from('orders')
+        .update(payload)
+        .eq('id', orderId)
+        .select()
+        .single();
+      return { data, error };
+    };
+
+    let result = await tryUpdateField('status');
+    if (result.error && result.error.message?.includes('column')) {
+      result = await tryUpdateField('order_status');
+    }
+
+    if (result.error) throw result.error;
+    const order = result.data;
+
+    const { error: historyError } = await supabase
+      .from('order_status_histories')
+      .insert([{
+        order_id: orderId,
+        status,
+        note: note || `Trạng thái cập nhật bởi admin`,
+        changed_by: adminId
+      }]);
+
+    if (historyError) throw historyError;
+
+    res.status(200).json({ message: 'Cập nhật trạng thái thành công', order });
+  } catch (error) {
+    console.error('UpdateOrderStatus Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

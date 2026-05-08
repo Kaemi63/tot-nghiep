@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../services/supabaseClient';
+import AdminShell from '../../components/Admin/AdminShell';
 import UserFilters from '../../components/UserManagement/UserFilters';
 import UserTable from '../../components/UserManagement/UserTable';
 import UserEditModal from '../../components/UserManagement/UserEdit';
@@ -102,10 +103,11 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-black mb-8 text-slate-900">Quản lý người dùng</h1>
-        
+    <AdminShell
+      title="Quản lý người dùng"
+      subtitle="Quản lý tài khoản, vai trò và trạng thái người dùng hệ thống."
+    >
+      <div className="space-y-6">
         <UserFilters 
           searchTerm={searchTerm} 
           setSearchTerm={setSearchTerm} 
@@ -115,7 +117,7 @@ const UserManagement = () => {
             setEditingUser({ id: '', fullname: '', username: '', email: '', role: 'user', password: '', avatar_url: '' }); 
             setIsEditModalOpen(true); 
           }}
-          onRefresh={handleRefresh} // <--- GÁN HÀM LÀM MỚI VÀO ĐÂY
+          onRefresh={handleRefresh}
         />
 
         <UserTable 
@@ -133,7 +135,7 @@ const UserManagement = () => {
         setUser={setEditingUser} 
         onSave={handleSaveUser} 
       />
-    </div>
+    </AdminShell>
   );
 };
 

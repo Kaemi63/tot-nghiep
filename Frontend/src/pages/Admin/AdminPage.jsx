@@ -5,9 +5,10 @@ import UserHeader from '../../components/UserManagement/UserHeader';
 // Import 2 trang nội dung của bạn
 import UserManagementContent from './UserManagement'; 
 import ProductManagementContent from './ProductManagement';
+import AdminOrderManagement from './AdminOrderManagement';
 
 const AdminDashboard = ({ onLogout }) => {
-  // Quản lý trạng thái: 'users' hoặc 'products'
+  // Quản lý trạng thái: 'users', 'products', 'orders'
   const [activePage, setActivePage] = useState('users');
 
   return (
@@ -31,6 +32,10 @@ const AdminDashboard = ({ onLogout }) => {
 
           {activePage === 'products' && (
             <ProductManagementContent />
+          )}
+
+          {activePage === 'orders' && (
+            <AdminOrderManagement />
           )}
         </main>
       </div>

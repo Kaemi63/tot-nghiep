@@ -17,7 +17,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import { useAuthProfile } from '../hooks/useAuthProfile';
 import { chatbotService } from '../services/chatbotService';
 
-const ChatPage = () => {
+const ChatPage = ({ onLogout }) => {
   const [chatKey, setChatKey] = useState(0);
   const { userProfile, token} = useAuthProfile();
   const [sessions, setSessions] = useState([]);
@@ -132,7 +132,7 @@ const ChatPage = () => {
   
 
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden">
+    <div className={`flex h-screen w-full bg-white ${activeSection === 'myAccount' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       <Sidebar
         onNewChat={handleNewChat}
         userProfile={userProfile}
@@ -148,6 +148,7 @@ const ChatPage = () => {
         onSectionChange={setActiveSection}
         onOpenWishlist={openWishlist}
         isStore={activeSection !== 'chat'}
+        onLogout={onLogout}
         isCreatingChat={isCreatingChat}
         showCategories={activeSection !== 'chat' && activeSection !== 'myAccount'}
         onCategorySelect={openProductListing}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2 } from "lucide-react";
+import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2, LogOut } from "lucide-react";
 
 const Sidebar = ({ 
   onNewChat, 
@@ -14,6 +14,7 @@ const Sidebar = ({
   onSessionSelect, 
   onDeleteSession,
   isCreatingChat = false,
+  onLogout,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true); // Trạng thái đóng/mở list lịch sử
@@ -119,8 +120,11 @@ const Sidebar = ({
       <div className="p-4 border-t border-slate-100 space-y-6 bg-slate-50/50">
         {collapsed ? (
           <div className="flex flex-col items-center p-2 bg-white rounded-2xl border border-slate-50 shadow-sm">
-            <button onClick={onOpenAccount} className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 overflow-hidden">
+            <button onClick={onOpenAccount} className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 overflow-hidden mb-2">
               <img src={userProfile?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=fallback"} alt="avatar" className="w-full h-full object-cover" />
+            </button>
+            <button onClick={onLogout} className="flex items-center justify-center w-10 h-10 rounded-full bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-600">
+              <LogOut size={18} />
             </button>
           </div>
         ) : (
@@ -132,9 +136,14 @@ const Sidebar = ({
               <span className="block font-bold text-sm text-slate-800 truncate">{userProfile?.fullname || "Khách"}</span>
               <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Free Account</span>
             </div>
-            <button onClick={onOpenAccount} className="px-3 py-1 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-xs hover:bg-indigo-100 transition-colors">
-              Hồ sơ
-            </button>
+            <div className="flex gap-2">
+              <button onClick={onOpenAccount} className="px-3 py-1 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-xs hover:bg-indigo-100 transition-colors">
+                Hồ sơ
+              </button>
+              <button onClick={onLogout} className="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg text-xs hover:bg-rose-100 transition-colors">
+                <LogOut size={14} />
+              </button>
+            </div>
           </div>
         )}
       </div>

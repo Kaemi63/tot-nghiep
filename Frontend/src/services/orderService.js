@@ -49,5 +49,35 @@ export const orderService = {
     });
     if (!res.ok) throw new Error('Không thể lấy lịch sử đơn hàng');
     return res.json();
-  }
-};
+  },
+  async getAllOrders(token) {
+    const res = await fetch(`${API_URL}/all`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Không thể lấy danh sách đơn hàng');
+    return res.json();
+  },
+
+  async updateOrderStatus(token, orderId, status, note = '') {
+    const res = await fetch(`${API_URL}/${orderId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status, note })
+    });
+
+    if (!res.ok) {
+      let errorMessage = 'Không thể cập nhật trạng thái đơn hàng';
+      try {
+        const data = await res.json();
+        if (data?.error) errorMessage = data.error;
+      } catch (err) {
+        console.error('OrderService updateOrderStatus parse error:', err);
+      }
+      throw new Error(errorMessage);
+    }
+
+    return res.json();
+  },};
