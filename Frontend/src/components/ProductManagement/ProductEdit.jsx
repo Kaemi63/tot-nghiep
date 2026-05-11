@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   X, Camera, Tag, PlusCircle, Trash2, Zap, Layers3,
   ChevronsUpDown, Info, Package, Image as ImageIcon,
@@ -164,13 +164,25 @@ const SizePicker = ({ value, onChange, category = 'clothes' }) => {
 };
 
 // ===================== MAIN COMPONENT =====================
-const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [], brands = [], onSave, loadingSave }) => {
+const ProductEditModal = ({ isOpen, onClose, product, categories = [], brands = [], onSave, loadingSave }) => {
   const thumbnailInputRef = useRef(null);
   const albumInputRef = useRef(null);
   const [expandedVariant, setExpandedVariant] = useState(null);
 
+  // ===================== DRAFT STATE (FIX CHÍNH) =====================
+  // Dùng internal state để tránh stale closure khi edit variants/images/specs
+  const [draft, setDraft] = useState(product || {});
+
+  // Sync lại draft mỗi khi mở modal (sản phẩm mới hoặc chuyển sang edit khác)
+  useEffect(() => {
+    if (isOpen) {
+      setDraft(product || {});
+      setExpandedVariant(null);
+    }
+  }, [isOpen, product?.id]);
+
   if (!isOpen) return null;
-  const isAddMode = !product?.id;
+  const isAddMode = !draft?.id;
 
   const inputClass = `w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-xl outline-none 
     transition-all font-medium focus:ring-2 focus:ring-indigo-100 placeholder:text-slate-400 placeholder:font-normal text-sm`;
@@ -192,7 +204,7 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
     const toastId = toast.loading("Đang tải ảnh lên...");
     try {
       const url = await uploadImageToStorage(file, 'thumbnails');
-      setProduct({ ...product, thumbnail_url: url });
+      setDraft(prev => ({ ...prev, thumbnail_url: url }));
       toast.success("Tải ảnh thành công!", { id: toastId });
     } catch (err) {
       toast.error("Lỗi tải ảnh: " + err.message, { id: toastId });
@@ -207,9 +219,9 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
       const urls = await Promise.all(files.map(f => uploadImageToStorage(f, 'album')));
       const newImages = urls.map((url, idx) => ({
         image_url: url,
-        sort_order: (product.product_images?.length || 0) + idx
+        sort_order: (prev.product_images?.length || 0) + idx
       }));
-      setProduct({ ...product, product_images: [...(product.product_images || []), ...newImages] });
+      setDraft(prev => ({ ...prev, product_images: [...(prev.product_images || []), ...newImages] }));
       toast.success(`Đã tải ${files.length} ảnh!`, { id: toastId });
     } catch (err) {
       toast.error("Lỗi tải ảnh: " + err.message, { id: toastId });
@@ -218,46 +230,52 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
 
   // ===================== VARIANTS =====================
   const handleVariantChange = (idx, field, value) => {
-    const updated = [...(product.product_variants || [])];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setProduct({ ...product, product_variants: updated });
+    setDraft(prev => {
+      const updated = [...(prev.product_variants || [])];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, product_variants: updated };
+    });
   };
 
   const addVariant = () => {
-    const newIdx = (product.product_variants || []).length;
-    setProduct({
-      ...product,
-      product_variants: [
-        ...(product.product_variants || []),
-        { sku: '', variant_name: '', price: product.base_price || 0, stock_quantity: 0, color: '', size: '' }
-      ]
+    setDraft(prev => {
+      const newIdx = (prev.product_variants || []).length;
+      setExpandedVariant(newIdx);
+      return {
+        ...prev,
+        product_variants: [
+          ...(prev.product_variants || []),
+          { sku: '', variant_name: '', price: prev.base_price || 0, stock_quantity: 0, color: '', size: '' }
+        ]
+      };
     });
-    setExpandedVariant(newIdx);
   };
 
   // Duplicate một variant
   const duplicateVariant = (idx) => {
-    const src = product.product_variants[idx];
-    const copy = { ...src, id: undefined, sku: src.sku + '_copy' };
-    const updated = [...product.product_variants];
-    updated.splice(idx + 1, 0, copy);
-    setProduct({ ...product, product_variants: updated });
+    setDraft(prev => {
+      const src = prev.product_variants[idx];
+      const copy = { ...src, id: undefined, sku: src.sku + '_copy' };
+      const updated = [...prev.product_variants];
+      updated.splice(idx + 1, 0, copy);
+      return { ...prev, product_variants: updated };
+    });
     setExpandedVariant(idx + 1);
     toast.success('Đã nhân đôi biến thể');
   };
 
   const removeVariant = (idx) => {
-    setProduct({
-      ...product,
-      product_variants: (product.product_variants || []).filter((_, i) => i !== idx)
-    });
+    setDraft(prev => ({
+      ...prev,
+      product_variants: (prev.product_variants || []).filter((_, i) => i !== idx)
+    }));
     if (expandedVariant === idx) setExpandedVariant(null);
   };
 
   // Auto-generate SKU từ tên, màu, size
   const autoSku = (idx) => {
-    const v = product.product_variants[idx];
-    const baseName = (product.name || '').toUpperCase().replace(/\s+/g, '_').slice(0, 10);
+    const v = draft.product_variants[idx];
+    const baseName = (draft.name || '').toUpperCase().replace(/\s+/g, '_').slice(0, 10);
     const color = (v.color || '').toUpperCase().replace(/\s+/g, '').slice(0, 5);
     const size = (v.size || '').replace(/\s+/g, '');
     const sku = [baseName, color, size].filter(Boolean).join('_');
@@ -266,47 +284,53 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
 
   // ===================== IMAGES =====================
   const handleImageChange = (idx, field, value) => {
-    const updated = [...(product.product_images || [])];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setProduct({ ...product, product_images: updated });
+    setDraft(prev => {
+      const updated = [...(prev.product_images || [])];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, product_images: updated };
+    });
   };
 
-  const addImageManual = () => setProduct({
-    ...product,
-    product_images: [...(product.product_images || []), { image_url: '', sort_order: product.product_images?.length || 0 }]
-  });
+  const addImageManual = () => setDraft(prev => ({
+    ...prev,
+    product_images: [...(prev.product_images || []), { image_url: '', sort_order: prev.product_images?.length || 0 }]
+  }));
 
-  const removeImage = (idx) => setProduct({
-    ...product,
-    product_images: (product.product_images || []).filter((_, i) => i !== idx)
-  });
+  const removeImage = (idx) => setDraft(prev => ({
+    ...prev,
+    product_images: (prev.product_images || []).filter((_, i) => i !== idx)
+  }));
 
   // Move image up/down
   const moveImage = (idx, dir) => {
-    const imgs = [...(product.product_images || [])];
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= imgs.length) return;
-    [imgs[idx], imgs[newIdx]] = [imgs[newIdx], imgs[idx]];
-    imgs.forEach((img, i) => img.sort_order = i);
-    setProduct({ ...product, product_images: imgs });
+    setDraft(prev => {
+      const imgs = [...(prev.product_images || [])];
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= imgs.length) return prev;
+      [imgs[idx], imgs[newIdx]] = [imgs[newIdx], imgs[idx]];
+      imgs.forEach((img, i) => img.sort_order = i);
+      return { ...prev, product_images: imgs };
+    });
   };
 
   // ===================== SPECS =====================
   const handleSpecChange = (idx, field, value) => {
-    const updated = [...(product.product_specifications || [])];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setProduct({ ...product, product_specifications: updated });
+    setDraft(prev => {
+      const updated = [...(prev.product_specifications || [])];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, product_specifications: updated };
+    });
   };
 
-  const addSpec = () => setProduct({
-    ...product,
-    product_specifications: [...(product.product_specifications || []), { spec_name: '', spec_value: '' }]
-  });
+  const addSpec = () => setDraft(prev => ({
+    ...prev,
+    product_specifications: [...(prev.product_specifications || []), { spec_name: '', spec_value: '' }]
+  }));
 
-  const removeSpec = (idx) => setProduct({
-    ...product,
-    product_specifications: (product.product_specifications || []).filter((_, i) => i !== idx)
-  });
+  const removeSpec = (idx) => setDraft(prev => ({
+    ...prev,
+    product_specifications: (prev.product_specifications || []).filter((_, i) => i !== idx)
+  }));
 
   // Quick-add spec templates
   const SPEC_TEMPLATES = [
@@ -319,19 +343,19 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
   ];
 
   const addSpecTemplate = (tpl) => {
-    const exists = (product.product_specifications || []).some(s => s.spec_name === tpl.spec_name);
+    const exists = (draft.product_specifications || []).some(s => s.spec_name === tpl.spec_name); // reads current draft
     if (exists) { toast.error(`"${tpl.spec_name}" đã có rồi`); return; }
-    setProduct({
-      ...product,
-      product_specifications: [...(product.product_specifications || []), { ...tpl }]
-    });
+    setDraft(prev => ({
+      ...prev,
+      product_specifications: [...(prev.product_specifications || []), { ...tpl }]
+    }));
   };
 
   const flatCategories = categories.flatMap(cat => [cat, ...(cat.children || [])]);
 
-  const variants = product.product_variants || [];
-  const images = product.product_images || [];
-  const specs = product.product_specifications || [];
+  const variants = draft.product_variants || [];
+  const images = draft.product_images || [];
+  const specs = draft.product_specifications || [];
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
@@ -348,10 +372,10 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
                 {isAddMode ? "Thêm sản phẩm mới" : "Chỉnh sửa sản phẩm"}
               </h2>
               <p className="text-xs text-slate-400 font-mono mt-0.5">
-                {product.id ? `ID: ${product.id}` : "Điền đầy đủ thông tin sản phẩm"}
-                {product.status && (
-                  <span className={`ml-4 font-bold ${product.status === 'active' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    ● {product.status}
+                {draft.id ? `ID: ${draft.id}` : "Điền đầy đủ thông tin sản phẩm"}
+                {draft.status && (
+                  <span className={`ml-4 font-bold ${draft.status === 'active' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    ● {draft.status}
                   </span>
                 )}
               </p>
@@ -372,32 +396,32 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
               <div className="col-span-2 space-y-5">
                 <div>
                   <label className={labelClass}>Tên sản phẩm <span className="text-rose-500">*</span></label>
-                  <input type="text" className={inputClass} value={product.name || ''} onChange={(e) => setProduct({ ...product, name: e.target.value })} placeholder="Nhập tên sản phẩm..." />
+                  <input type="text" className={inputClass} value={draft.name || ''} onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))} placeholder="Nhập tên sản phẩm..." />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Slug (URL)</label>
-                    <input type="text" className={inputClass} value={product.slug || ''} onChange={(e) => setProduct({ ...product, slug: e.target.value })} placeholder="vd: ao-thun-oversize" />
+                    <input type="text" className={inputClass} value={draft.slug || ''} onChange={(e) => setDraft(prev => ({ ...prev, slug: e.target.value }))} placeholder="vd: ao-thun-oversize" />
                   </div>
                   <div>
                     <label className={labelClass}>Giá gốc (VND) <span className="text-rose-500">*</span></label>
-                    <input type="number" className={`${inputClass} font-extrabold text-indigo-700`} value={product.base_price || 0} onChange={(e) => setProduct({ ...product, base_price: parseInt(e.target.value) || 0 })} />
+                    <input type="number" className={`${inputClass} font-extrabold text-indigo-700`} value={draft.base_price || 0} onChange={(e) => setDraft(prev => ({ ...prev, base_price: parseInt(e.target.value) || 0 }))} />
                   </div>
                 </div>
                 <div>
                   <label className={labelClass}>Mô tả ngắn</label>
-                  <textarea className={`${inputClass} h-20 resize-none`} value={product.short_description || ''} onChange={(e) => setProduct({ ...product, short_description: e.target.value })} placeholder="Mô tả ngắn gọn về sản phẩm..." />
+                  <textarea className={`${inputClass} h-20 resize-none`} value={draft.short_description || ''} onChange={(e) => setDraft(prev => ({ ...prev, short_description: e.target.value }))} placeholder="Mô tả ngắn gọn về sản phẩm..." />
                 </div>
                 <div>
                   <label className={labelClass}>Mô tả chi tiết</label>
-                  <textarea className={`${inputClass} h-28 resize-none`} value={product.description || ''} onChange={(e) => setProduct({ ...product, description: e.target.value })} placeholder="Mô tả đầy đủ về sản phẩm..." />
+                  <textarea className={`${inputClass} h-28 resize-none`} value={draft.description || ''} onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))} placeholder="Mô tả đầy đủ về sản phẩm..." />
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <label className={labelClass}><Layers3 size={12} className="inline mr-1" />Danh mục</label>
-                  <select className={`${inputClass} cursor-pointer`} value={product.category_id || ''} onChange={(e) => setProduct({ ...product, category_id: e.target.value })}>
+                  <label className={labelClass}>Danh mục</label>
+                  <select className={`${inputClass} cursor-pointer`} value={draft.category_id || ''} onChange={(e) => setDraft(prev => ({ ...prev, category_id: e.target.value }))}>
                     <option value="">Chọn danh mục...</option>
                     {flatCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.parent_id ? `  └ ${cat.name}` : cat.name}</option>
@@ -405,26 +429,38 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}><Zap size={12} className="inline mr-1" />Thương hiệu</label>
-                  <select className={`${inputClass} cursor-pointer`} value={product.brand_id || ''} onChange={(e) => setProduct({ ...product, brand_id: e.target.value })}>
+                  <label className={labelClass}>Thương hiệu</label>
+                  <select className={`${inputClass} cursor-pointer`} value={draft.brand_id || ''} onChange={(e) => setDraft(prev => ({ ...prev, brand_id: e.target.value }))}>
                     <option value="">Chọn thương hiệu...</option>
                     {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={labelClass}>Trạng thái</label>
-                  <select className={`${inputClass} cursor-pointer`} value={product.status || 'draft'} onChange={(e) => setProduct({ ...product, status: e.target.value })}>
+                  <select className={`${inputClass} cursor-pointer`} value={draft.status || 'draft'} onChange={(e) => setDraft(prev => ({ ...prev, status: e.target.value }))}>
                     <option value="active">Active</option>
                     <option value="draft">Draft</option>
                     <option value="archived">Archived</option>
                   </select>
+                <div>
+                  <label className={labelClass}>Loại size</label>
+                  <select
+                      className={`${inputClass} cursor-pointer`}
+                      value={draft.size_type || 'clothes'}
+                      onChange={(e) => setDraft(prev => ({ ...prev, size_type: e.target.value }))}
+                  >
+                    <option value="clothes">Quần áo (S, M, L, XL...)</option>
+                    <option value="shoes">Giày dép (35, 36, 37...)</option>
+                    <option value="other">Khác (nhập tay)</option>
+                  </select>
                 </div>
+              </div>
                 <div
                   className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer"
-                  onClick={() => setProduct({ ...product, is_featured: !product.is_featured })}
+                  onClick={() => setDraft(prev => ({ ...prev, is_featured: !prev.is_featured }))}
                 >
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${product.is_featured ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
-                    {product.is_featured && <Star size={12} className="text-white fill-white" />}
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${draft.is_featured ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                    {draft.is_featured && <Star size={12} className="text-white fill-white" />}
                   </div>
                   <label className="text-sm font-bold text-slate-700 cursor-pointer">Sản phẩm nổi bật (Featured)</label>
                 </div>
@@ -443,7 +479,7 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
                   className="relative group w-36 h-36 mb-4 border-4 border-white rounded-2xl shadow-xl overflow-hidden cursor-pointer"
                   onClick={() => thumbnailInputRef.current?.click()}
                 >
-                  <img src={product.thumbnail_url || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" alt="" />
+                  <img src={draft.thumbnail_url || 'https://via.placeholder.com/150'} className="w-full h-full object-cover" alt="" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
                     <Upload className="text-white mb-1" size={22} />
                     <span className="text-white text-[10px] font-bold">Tải ảnh lên</span>
@@ -457,8 +493,8 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
                 <input
                   type="text"
                   className={`${inputClass} text-center text-xs`}
-                  value={product.thumbnail_url || ''}
-                  onChange={(e) => setProduct({ ...product, thumbnail_url: e.target.value })}
+                  value={draft.thumbnail_url || ''}
+                  onChange={(e) => setDraft(prev => ({ ...prev, thumbnail_url: e.target.value }))}
                   placeholder="https://..."
                 />
               </div>
@@ -649,6 +685,7 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
                               <SizePicker
                                 value={v.size}
                                 onChange={(val) => handleVariantChange(idx, 'size', val)}
+                                category={draft.size_type || 'clothes'}
                               />
                             </div>
 
@@ -808,7 +845,7 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
           <p className="text-xs text-slate-400 font-medium">
             {isAddMode
               ? "Sản phẩm mới sẽ được tạo ngay sau khi lưu"
-              : `Cập nhật lần cuối: ${product.updated_at ? new Date(product.updated_at).toLocaleString('vi-VN') : '—'}`
+              : `Cập nhật lần cuối: ${draft.updated_at ? new Date(draft.updated_at).toLocaleString('vi-VN') : '—'}`
             }
           </p>
           <div className="flex gap-3">
@@ -816,7 +853,7 @@ const ProductEditModal = ({ isOpen, onClose, product, setProduct, categories = [
               Hủy bỏ
             </button>
             <button
-              onClick={onSave}
+              onClick={() => onSave(draft)}
               disabled={loadingSave}
               className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-extrabold hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95 disabled:opacity-60 flex items-center gap-2"
             >

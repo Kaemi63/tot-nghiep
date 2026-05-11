@@ -1,5 +1,6 @@
 // src/pages/Admin/ProductManagement.jsx
 import React, { useState } from 'react';
+import AdminShell from '../../components/Admin/AdminShell';
 import ProductFilters from '../../components/ProductManagement/ProductFilters';
 import ProductTable from '../../components/ProductManagement/ProductTable';
 import ProductEditModal from '../../components/ProductManagement/ProductEdit';
@@ -12,6 +13,7 @@ const EMPTY_PRODUCT = {
   name: '', slug: '', short_description: '', description: '',
   thumbnail_url: '', base_price: 0, status: 'active', is_featured: false,
   category_id: '', brand_id: '',
+  size_type: 'clothes',
   product_variants: [],
   product_images: [],
   product_specifications: []
@@ -51,21 +53,20 @@ const AdminProductsPage = () => {
     await deleteProduct(id);
   };
 
-  const handleSave = async () => {
-    const success = await saveProduct(editingProduct);
+  const handleSave = async (productData) => {
+    const success = await saveProduct(productData);
     if (success) setModalOpen(false);
   };
 
   const handleSearch = () => fetchProducts();
 
   return (
-    <div className="p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Quản lý sản phẩm</h1>
-          <span className="text-sm text-slate-400 font-semibold">{products.length} sản phẩm</span>
-        </div>
-
+    <AdminShell
+      title="Quản lý sản phẩm"
+      subtitle="Duyệt, chỉnh sửa và quản lý toàn bộ danh sách sản phẩm."
+      actions={<span className="text-sm text-slate-500 font-medium">{products.length} sản phẩm</span>}
+    >
+      <div className="space-y-6">
         <ProductFilters
           searchTerm={searchTerm} setSearchTerm={setSearchTerm}
           categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
@@ -101,13 +102,12 @@ const AdminProductsPage = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         product={editingProduct}
-        setProduct={setEditingProduct}
         categories={categories}
         brands={brands}
         onSave={handleSave}
         loadingSave={saving}
       />
-    </div>
+    </AdminShell>
   );
 };
 

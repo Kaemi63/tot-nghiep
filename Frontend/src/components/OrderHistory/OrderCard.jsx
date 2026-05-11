@@ -11,8 +11,11 @@ const OrderCard = ({ order, isSelected, onSelect, onClose }) => {
     ? new Date(order.created_at).toLocaleString('vi-VN')
     : 'Đang cập nhật';
 
+  const orderStatus = order.order_status || order.status || 'Chưa cập nhật';
+  const paymentStatus = order.payment_status || order.payment_status || 'pending';
+
   // Điều kiện hiện nút Đánh giá
-  const canReview = order.payment_status === 'paid' && order.order_status === 'confirmed';
+  const canReview = paymentStatus === 'paid' && (orderStatus === 'confirmed' || orderStatus === 'Đã xác nhận');
 
   const handleOpenReview = (e, product) => {
     e.stopPropagation();
@@ -51,7 +54,7 @@ const OrderCard = ({ order, isSelected, onSelect, onClose }) => {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tổng thanh toán</p>
                 <p className="text-sm font-black text-indigo-600">{fmt(order.total_amount)}</p>
              </div>
-             <StatusBadge status={order.order_status} />
+             <StatusBadge status={orderStatus} />
           </div>
         </div>
 

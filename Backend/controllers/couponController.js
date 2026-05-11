@@ -88,7 +88,7 @@ exports.getPublicCoupons = async (req, res) => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('coupons')
-      .select('id, code, name, description, discount_type, discount_value, min_order_value, max_discount, end_date')
+      .select('id, code, name, description, discount_type, discount_value, min_order_value, max_discount, used_count, usage_limit, start_date, end_date')
       .eq('status', 'active')
       .or(`end_date.is.null,end_date.gt.${now}`) // Hết hạn hoặc end_date chưa tới
       .order('created_at', { ascending: false });
@@ -100,7 +100,43 @@ exports.getPublicCoupons = async (req, res) => {
   }
 };
 
-// 3. Admin: Tạo Coupon mới
+// 3. Lấy coupon người dùng đã dùng
+exports.getUserCoupons = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const { data: usages, error: usageError } = await supabase
+      .from('coupon_usages')
+      .select('id, order_id, created_at, coupon_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (usageError) throw usageError;
+
+    const couponIds = usages.map((usage) => usage.coupon_id).filter(Boolean);
+    let coupons = [];
+
+    if (couponIds.length > 0) {
+      const { data: couponData, error: couponError } = await supabase
+        .from('coupons')
+        .select('id, code, name, discount_type, discount_value, min_order_value, max_discount, end_date')
+        .in('id', couponIds);
+
+      if (couponError) throw couponError;
+      coupons = couponData || [];
+    }
+
+    const results = usages.map((usage) => ({
+      ...usage,
+      coupons: coupons.find((coupon) => coupon.id === usage.coupon_id) || null,
+    }));
+
+    res.status(200).json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 4. Admin: Tạo Coupon mới
 exports.createCoupon = async (req, res) => {
   try {
     const { 

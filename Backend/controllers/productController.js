@@ -1,5 +1,6 @@
 const supabase = require('../config/supabaseClient');
 
+// ===================== GET ALL (PUBLIC - USER) =====================
 const getProducts = async (req, res) => {
   try {
     const { category, search, slug, limit = 50, offset = 0 } = req.query;
@@ -22,7 +23,17 @@ const getProducts = async (req, res) => {
       return res.status(200).json(data);
     }
 
-    if (category) query = query.eq('categories.slug', category);
+    if (category) {
+      const { data: cat, error: catError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('slug', category)
+        .single();
+
+      if (catError || !cat) return res.status(200).json([]);
+      query = query.eq('category_id', cat.id);
+    }
+
     if (search) query = query.ilike('name', `%${search}%`);
     query = query.order('created_at', { ascending: false }).range(Number(offset), Number(offset) + Number(limit) - 1);
 
@@ -77,23 +88,39 @@ const createProduct = async (req, res) => {
 
     const { data: product, error: productError } = await supabase
       .from('products')
-      .insert([{ name, slug, short_description, description, thumbnail_url, base_price, status: status || 'active', is_featured: is_featured || false, category_id, brand_id }])
-      .select().single();
+      .insert([{
+        name, slug, short_description, description,
+        thumbnail_url, base_price,
+        status: status || 'active',
+        is_featured: is_featured || false,
+        category_id, brand_id
+      }])
+      .select()
+      .single();
 
     if (productError) return res.status(400).json({ error: productError.message });
     const productId = product.id;
 
     if (product_variants?.length > 0) {
       const payload = product_variants.map(({ id: _, ...v }) => ({ ...v, product_id: productId }));
-      await supabase.from('product_variants').insert(payload);
+      const { error } = await supabase.from('product_variants').insert(payload);
+      if (error) return res.status(400).json({ error: 'Lỗi lưu biến thể: ' + error.message });
     }
+
     if (product_images?.length > 0) {
-      const payload = product_images.map(({ id: _, ...img }, idx) => ({ ...img, product_id: productId, sort_order: img.sort_order ?? idx }));
-      await supabase.from('product_images').insert(payload);
+      const payload = product_images.map(({ id: _, ...img }, idx) => ({
+        ...img,
+        product_id: productId,
+        sort_order: img.sort_order ?? idx
+      }));
+      const { error } = await supabase.from('product_images').insert(payload);
+      if (error) return res.status(400).json({ error: 'Lỗi lưu ảnh: ' + error.message });
     }
+
     if (product_specifications?.length > 0) {
       const payload = product_specifications.map(({ id: _, ...s }) => ({ ...s, product_id: productId }));
-      await supabase.from('product_specifications').insert(payload);
+      const { error } = await supabase.from('product_specifications').insert(payload);
+      if (error) return res.status(400).json({ error: 'Lỗi lưu thông số: ' + error.message });
     }
 
     res.status(201).json({ message: "Tạo sản phẩm thành công", product });
@@ -115,32 +142,50 @@ const updateProduct = async (req, res) => {
 
     const { error: productError } = await supabase
       .from('products')
-      .update({ name, slug, short_description, description, thumbnail_url, base_price, status, is_featured, category_id, brand_id, updated_at: new Date() })
+      .update({
+        name, slug, short_description, description,
+        thumbnail_url, base_price, status, is_featured,
+        category_id, brand_id,
+        updated_at: new Date()
+      })
       .eq('id', id);
 
     if (productError) return res.status(400).json({ error: productError.message });
 
     if (product_variants !== undefined) {
-      await supabase.from('product_variants').delete().eq('product_id', id);
+      const { error: delErr } = await supabase.from('product_variants').delete().eq('product_id', id);
+      if (delErr) return res.status(400).json({ error: 'Lỗi xóa biến thể cũ: ' + delErr.message });
+
       if (product_variants.length > 0) {
         const payload = product_variants.map(({ id: _, ...v }) => ({ ...v, product_id: id }));
-        await supabase.from('product_variants').insert(payload);
+        const { error: insErr } = await supabase.from('product_variants').insert(payload);
+        if (insErr) return res.status(400).json({ error: 'Lỗi lưu biến thể: ' + insErr.message });
       }
     }
 
     if (product_images !== undefined) {
-      await supabase.from('product_images').delete().eq('product_id', id);
+      const { error: delErr } = await supabase.from('product_images').delete().eq('product_id', id);
+      if (delErr) return res.status(400).json({ error: 'Lỗi xóa ảnh cũ: ' + delErr.message });
+
       if (product_images.length > 0) {
-        const payload = product_images.map(({ id: _, ...img }, idx) => ({ ...img, product_id: id, sort_order: img.sort_order ?? idx }));
-        await supabase.from('product_images').insert(payload);
+        const payload = product_images.map(({ id: _, ...img }, idx) => ({
+          ...img,
+          product_id: id,
+          sort_order: img.sort_order ?? idx
+        }));
+        const { error: insErr } = await supabase.from('product_images').insert(payload);
+        if (insErr) return res.status(400).json({ error: 'Lỗi lưu ảnh: ' + insErr.message });
       }
     }
 
     if (product_specifications !== undefined) {
-      await supabase.from('product_specifications').delete().eq('product_id', id);
+      const { error: delErr } = await supabase.from('product_specifications').delete().eq('product_id', id);
+      if (delErr) return res.status(400).json({ error: 'Lỗi xóa thông số cũ: ' + delErr.message });
+
       if (product_specifications.length > 0) {
         const payload = product_specifications.map(({ id: _, ...s }) => ({ ...s, product_id: id }));
-        await supabase.from('product_specifications').insert(payload);
+        const { error: insErr } = await supabase.from('product_specifications').insert(payload);
+        if (insErr) return res.status(400).json({ error: 'Lỗi lưu thông số: ' + insErr.message });
       }
     }
 
@@ -154,11 +199,19 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    await supabase.from('product_variants').delete().eq('product_id', id);
-    await supabase.from('product_images').delete().eq('product_id', id);
-    await supabase.from('product_specifications').delete().eq('product_id', id);
+
+    const { error: delVariants } = await supabase.from('product_variants').delete().eq('product_id', id);
+    if (delVariants) return res.status(400).json({ error: 'Lỗi xóa biến thể: ' + delVariants.message });
+
+    const { error: delImages } = await supabase.from('product_images').delete().eq('product_id', id);
+    if (delImages) return res.status(400).json({ error: 'Lỗi xóa ảnh: ' + delImages.message });
+
+    const { error: delSpecs } = await supabase.from('product_specifications').delete().eq('product_id', id);
+    if (delSpecs) return res.status(400).json({ error: 'Lỗi xóa thông số: ' + delSpecs.message });
+
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) return res.status(400).json({ error: error.message });
+
     res.status(200).json({ message: "Xóa sản phẩm thành công" });
   } catch (error) {
     res.status(500).json({ error: error.message });

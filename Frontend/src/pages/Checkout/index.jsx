@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageShell, EmptyState } from '../../components/ShopUI/ShopUI.jsx';
 import CheckoutForm from '../../components/Checkout/CheckoutForm.jsx';
 import OrderSummaryPanel from '../../components/Checkout/OrderSummaryPanel.jsx';
 import { orderService } from '../../services/orderService';
+import { addressService } from '../../services/addressService';
 import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { useCoupon } from '../../hooks/useCoupon'; // Import hook xử lý coupon
@@ -15,6 +16,33 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
   });
   const [loading, setLoading] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
+
+  useEffect(() => {
+    const fillDefaultAddress = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const defaultAddress = addressService.getDefaultAddress(session.user.id);
+        if (defaultAddress) {
+          setData(prev => ({
+            ...prev,
+            fullname: defaultAddress.fullname || prev.fullname,
+            phone: defaultAddress.phone || prev.phone,
+            email: defaultAddress.email || prev.email,
+            province: defaultAddress.province || prev.province,
+            district: defaultAddress.district || prev.district,
+            ward: defaultAddress.ward || prev.ward,
+            address: defaultAddress.address || prev.address,
+            note: defaultAddress.note || prev.note,
+          }));
+        }
+      } catch (error) {
+        console.error('Không thể nạp địa chỉ mặc định:', error);
+      }
+    };
+
+    fillDefaultAddress();
+  }, []);
 
   // --- 1. TÍCH HỢP HOOK COUPON ---
   const { 

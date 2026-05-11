@@ -31,6 +31,10 @@ const AdminSidebar = ({ activePage, setActivePage, onLogout }) => {
           <Package size={19} className={activePage === 'products' ? "opacity-100" : "opacity-60"} /> 
           {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Danh sách sản phẩm</span>}
         </button>
+        <button onClick={() => setActivePage('orders')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-150 ${activePage === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800/60 hover:text-white'}`}>
+          <ShoppingCart size={19} className={activePage === 'orders' ? "opacity-100" : "opacity-60"} /> 
+          {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Quản lý đơn hàng</span>}
+        </button>
       </nav>
       <div className="p-4 border-t border-slate-800">
         <button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all">

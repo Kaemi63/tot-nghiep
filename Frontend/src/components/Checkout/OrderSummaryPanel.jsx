@@ -11,7 +11,8 @@ const OrderSummaryPanel = ({
   appliedCoupon, 
   discount = 0 
 }) => {
-  const shippingFee = subtotal >= 500000 ? 0 : (shippingMethod === 'express' ? 35000 : 20000);
+  const SHIPPING_PRICES = { standard: 20000, express: 35000 };
+  const shippingFee = subtotal >= 500000 ? 0 : (SHIPPING_PRICES[shippingMethod] ?? 20000);
   // Cập nhật tính tổng: cộng phí ship và trừ đi tiền giảm giá
   const total = Math.max(0, subtotal + shippingFee - discount);
 
@@ -50,7 +51,7 @@ const OrderSummaryPanel = ({
         </div>
         
         <div className="flex justify-between text-slate-600">
-          <span>Phí vận chuyển</span>
+          <span>Phí vận chuyển {shippingMethod === 'express' ? '(Nhanh)' : '(Tiêu chuẩn)'}</span>
           <span className={`font-semibold ${shippingFee === 0 ? 'text-emerald-600' : ''}`}>
             {shippingFee === 0 ? 'Miễn phí' : fmt(shippingFee)}
           </span>

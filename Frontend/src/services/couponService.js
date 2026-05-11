@@ -25,6 +25,18 @@ const couponService = {
       console.error("Lỗi lấy danh sách coupon:", error);
       return [];
     }
+  },
+
+  getMyCoupons: async (token) => {
+    try {
+      const response = await axios.get(`${API_URL}/my`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Lỗi lấy coupon đã dùng:", error);
+      return [];
+    }
   }
 };
 
