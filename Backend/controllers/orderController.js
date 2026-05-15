@@ -239,7 +239,7 @@ exports.updateOrderStatus = async (req, res) => {
       .insert([{
         order_id: orderId,
         status,
-        note: note || `Trạng thái cập nhật bởi admin`,
+        note: note || `Xác nhận đơn đặt hàng thành công`,
         changed_by: adminId
       }]);
 
