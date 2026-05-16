@@ -9,7 +9,7 @@ import { useAuthProfile } from '../../hooks/useAuthProfile';
 import toast from 'react-hot-toast';
 
 const AdminOrderManagement = () => {
-  const { token } = useAuthProfile();
+  const { token, loading: authLoading } = useAuthProfile();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -17,24 +17,42 @@ const AdminOrderManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const fetchOrders = async () => {
-    if (!token) return;
+  const fetchOrders = React.useCallback(async () => {
+    if (!token) {
+      console.log('AdminOrderManagement: Chưa có token, bỏ qua fetch');
+      return;
+    }
 
+    console.log('AdminOrderManagement: Đang gọi API getAllOrders...');
     setLoading(true);
     try {
       const data = await orderService.getAllOrders(token);
-      setOrders(data);
+      console.log('AdminOrderManagement: Lấy thành công', data?.length, 'đơn hàng');
+      setOrders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Không thể tải danh sách đơn hàng');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [token]);
+    // Nếu auth đang load thì chờ
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    // Nếu đã load xong auth mà có token thì fetch, ngược lại tắt loading
+    if (token) {
+      fetchOrders();
+    } else {
+      setLoading(false);
+      setOrders([]);
+    }
+  }, [token, authLoading, fetchOrders]);
 
   const handleSelectOrder = (order) => {
     setSelectedOrder(order);

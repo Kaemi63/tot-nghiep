@@ -44,15 +44,25 @@ export const orderService = {
   },
 
   async getMyOrders(token) {
-    const res = await fetch(`${API_URL}/my-orders`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const res = await fetch(`${API_URL}/my-orders?t=${Date.now()}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      cache: 'no-store'
     });
     if (!res.ok) throw new Error('Không thể lấy lịch sử đơn hàng');
     return res.json();
   },
   async getAllOrders(token) {
-    const res = await fetch(`${API_URL}/all`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const res = await fetch(`${API_URL}/all?t=${Date.now()}`, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store'
     });
     if (!res.ok) throw new Error('Không thể lấy danh sách đơn hàng');
     return res.json();

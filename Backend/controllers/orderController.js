@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { createClient } = require('@supabase/supabase-js');
 
 exports.createOrder = async (req, res) => {
   const userId = req.user.id;
@@ -192,7 +193,17 @@ exports.getMyOrders = async (req, res) => {
 // Hàm lấy tất cả đơn hàng cho admin
 exports.getAllOrders = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    // Khởi tạo client MỚI TINH để tránh bị dính session của protect middleware
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL, 
+      process.env.SUPABASE_SERVICE_ROLE_KEY, 
+      {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+      }
+    );
+
+    const { data, error } = await supabaseAdmin
       .from('orders')
       .select(`
         *,
@@ -215,9 +226,18 @@ exports.updateOrderStatus = async (req, res) => {
   const adminId = req.user.id;
 
   try {
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL, 
+      process.env.SUPABASE_SERVICE_ROLE_KEY, 
+      {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+      }
+    );
+
     const tryUpdateField = async (field) => {
       const payload = { [field]: status };
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('orders')
         .update(payload)
         .eq('id', orderId)
@@ -234,7 +254,7 @@ exports.updateOrderStatus = async (req, res) => {
     if (result.error) throw result.error;
     const order = result.data;
 
-    const { error: historyError } = await supabase
+    const { error: historyError } = await supabaseAdmin
       .from('order_status_histories')
       .insert([{
         order_id: orderId,

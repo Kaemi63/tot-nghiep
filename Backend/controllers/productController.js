@@ -1,11 +1,18 @@
-const supabase = require('../config/supabaseClient');
-
+const { createClient } = require('@supabase/supabase-js');
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+  }
+);
 // ===================== GET ALL (PUBLIC - USER) =====================
 const getProducts = async (req, res) => {
   try {
     const { category, search, slug, limit = 50, offset = 0 } = req.query;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('products')
       .select(`
         *,
@@ -24,7 +31,7 @@ const getProducts = async (req, res) => {
     }
 
     if (category) {
-      const { data: cat, error: catError } = await supabase
+      const { data: cat, error: catError } = await supabaseAdmin
         .from('categories')
         .select('id')
         .eq('slug', category)
@@ -50,7 +57,7 @@ const getAdminProducts = async (req, res) => {
   try {
     const { search, category_id, brand_id, status, limit = 50, offset = 0 } = req.query;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('products')
       .select(`
         *,
@@ -86,7 +93,7 @@ const createProduct = async (req, res) => {
       product_variants, product_images, product_specifications
     } = req.body;
 
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .insert([{
         name, slug, short_description, description,
@@ -103,7 +110,7 @@ const createProduct = async (req, res) => {
 
     if (product_variants?.length > 0) {
       const payload = product_variants.map(({ id: _, ...v }) => ({ ...v, product_id: productId }));
-      const { error } = await supabase.from('product_variants').insert(payload);
+      const { error } = await supabaseAdmin.from('product_variants').insert(payload);
       if (error) return res.status(400).json({ error: 'Lỗi lưu biến thể: ' + error.message });
     }
 
@@ -113,13 +120,13 @@ const createProduct = async (req, res) => {
         product_id: productId,
         sort_order: img.sort_order ?? idx
       }));
-      const { error } = await supabase.from('product_images').insert(payload);
+      const { error } = await supabaseAdmin.from('product_images').insert(payload);
       if (error) return res.status(400).json({ error: 'Lỗi lưu ảnh: ' + error.message });
     }
 
     if (product_specifications?.length > 0) {
       const payload = product_specifications.map(({ id: _, ...s }) => ({ ...s, product_id: productId }));
-      const { error } = await supabase.from('product_specifications').insert(payload);
+      const { error } = await supabaseAdmin.from('product_specifications').insert(payload);
       if (error) return res.status(400).json({ error: 'Lỗi lưu thông số: ' + error.message });
     }
 
@@ -140,7 +147,7 @@ const updateProduct = async (req, res) => {
       product_variants, product_images, product_specifications
     } = req.body;
 
-    const { error: productError } = await supabase
+    const { error: productError } = await supabaseAdmin
       .from('products')
       .update({
         name, slug, short_description, description,
@@ -153,18 +160,18 @@ const updateProduct = async (req, res) => {
     if (productError) return res.status(400).json({ error: productError.message });
 
     if (product_variants !== undefined) {
-      const { error: delErr } = await supabase.from('product_variants').delete().eq('product_id', id);
+      const { error: delErr } = await supabaseAdmin.from('product_variants').delete().eq('product_id', id);
       if (delErr) return res.status(400).json({ error: 'Lỗi xóa biến thể cũ: ' + delErr.message });
 
       if (product_variants.length > 0) {
         const payload = product_variants.map(({ id: _, ...v }) => ({ ...v, product_id: id }));
-        const { error: insErr } = await supabase.from('product_variants').insert(payload);
+        const { error: insErr } = await supabaseAdmin.from('product_variants').insert(payload);
         if (insErr) return res.status(400).json({ error: 'Lỗi lưu biến thể: ' + insErr.message });
       }
     }
 
     if (product_images !== undefined) {
-      const { error: delErr } = await supabase.from('product_images').delete().eq('product_id', id);
+      const { error: delErr } = await supabaseAdmin.from('product_images').delete().eq('product_id', id);
       if (delErr) return res.status(400).json({ error: 'Lỗi xóa ảnh cũ: ' + delErr.message });
 
       if (product_images.length > 0) {
@@ -173,18 +180,18 @@ const updateProduct = async (req, res) => {
           product_id: id,
           sort_order: img.sort_order ?? idx
         }));
-        const { error: insErr } = await supabase.from('product_images').insert(payload);
+        const { error: insErr } = await supabaseAdmin.from('product_images').insert(payload);
         if (insErr) return res.status(400).json({ error: 'Lỗi lưu ảnh: ' + insErr.message });
       }
     }
 
     if (product_specifications !== undefined) {
-      const { error: delErr } = await supabase.from('product_specifications').delete().eq('product_id', id);
+      const { error: delErr } = await supabaseAdmin.from('product_specifications').delete().eq('product_id', id);
       if (delErr) return res.status(400).json({ error: 'Lỗi xóa thông số cũ: ' + delErr.message });
 
       if (product_specifications.length > 0) {
         const payload = product_specifications.map(({ id: _, ...s }) => ({ ...s, product_id: id }));
-        const { error: insErr } = await supabase.from('product_specifications').insert(payload);
+        const { error: insErr } = await supabaseAdmin.from('product_specifications').insert(payload);
         if (insErr) return res.status(400).json({ error: 'Lỗi lưu thông số: ' + insErr.message });
       }
     }
@@ -200,16 +207,16 @@ const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error: delVariants } = await supabase.from('product_variants').delete().eq('product_id', id);
+    const { error: delVariants } = await supabaseAdmin.from('product_variants').delete().eq('product_id', id);
     if (delVariants) return res.status(400).json({ error: 'Lỗi xóa biến thể: ' + delVariants.message });
 
-    const { error: delImages } = await supabase.from('product_images').delete().eq('product_id', id);
+    const { error: delImages } = await supabaseAdmin.from('product_images').delete().eq('product_id', id);
     if (delImages) return res.status(400).json({ error: 'Lỗi xóa ảnh: ' + delImages.message });
 
-    const { error: delSpecs } = await supabase.from('product_specifications').delete().eq('product_id', id);
+    const { error: delSpecs } = await supabaseAdmin.from('product_specifications').delete().eq('product_id', id);
     if (delSpecs) return res.status(400).json({ error: 'Lỗi xóa thông số: ' + delSpecs.message });
 
-    const { error } = await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
     if (error) return res.status(400).json({ error: error.message });
 
     res.status(200).json({ message: "Xóa sản phẩm thành công" });
