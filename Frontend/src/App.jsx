@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainPage from './pages/Main'; 
 import Login from './pages/Login';      
 import Register from './pages/Register'; 
@@ -6,9 +6,26 @@ import ChatPage from './pages/ChatPage';
 import AdminPage from '../src/pages/Admin/AdminPage.jsx';
 
 function App() {
+  // 1. Khởi tạo state từ localStorage (nếu có) để tránh bị giật trang khi refresh
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('fsa_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
   const [currentPage, setCurrentPage] = useState('home');
-  // Thêm state để quản lý thông tin user nếu cần
-  const [user, setUser] = useState(null);
+
+  // 2. useEffect để kiểm tra quyền truy cập ngay khi load App
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        setCurrentPage('admin');
+      } else {
+        setCurrentPage('chat');
+      }
+    } else {
+      setCurrentPage('home');
+    }
+  }, [user]);
 
   const handleGoToLogin = () => setCurrentPage('login');
   const handleGoToRegister = () => setCurrentPage('register');
@@ -16,26 +33,19 @@ function App() {
 
   // Hàm xử lý sau khi Login thành công
   const handleLoginSuccess = (userData) => {
-    setUser(userData); // Lưu thông tin user vào state
-    
-    // Kiểm tra role để phân luồng
-    if (userData && userData.role === 'admin') {
-      setCurrentPage('admin');
-    } else {
-      setCurrentPage('chat');
-    }
+    // Lưu vào localStorage để khi refresh không mất
+    localStorage.setItem('fsa_user', JSON.stringify(userData));
+    setUser(userData); 
+
   };
 
   // Hàm xử lý Đăng xuất
   const handleLogout = () => {
-    // 1. Xóa dữ liệu local
     localStorage.removeItem('fsa_user');
     localStorage.removeItem('fsa_token');
     
-    // 2. Reset state
     setUser(null);
     setCurrentPage('home');
-    
     console.log("Đã đăng xuất và chuyển về Home");
   };
 
@@ -65,6 +75,7 @@ function App() {
         <ChatPage onLogout={handleLogout} />
       )}
 
+      {/* Trang Admin */}
       {currentPage === 'admin' && (
         <AdminPage onLogout={handleLogout} />
       )}
