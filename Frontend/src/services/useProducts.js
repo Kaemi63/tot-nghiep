@@ -84,14 +84,20 @@ export function useAllProducts({ categorySlug, limit = 24 } = {}) {
       .limit(limit);
 
     if (categorySlug) {
-      // join filter via categories slug
+      // With !inner join, use eq on the foreign table column
       query = query.eq('categories.slug', categorySlug);
     }
 
     query.then(({ data, error: err }) => {
       if (!isMounted) return;
       if (err) setError(err.message);
-      else setProducts(data || []);
+      else {
+        // If categorySlug set, additionally filter client-side to ensure exact match
+        const result = categorySlug
+          ? (data || []).filter((p) => p.categories?.slug === categorySlug)
+          : (data || []);
+        setProducts(result);
+      }
       setLoading(false);
     });
 

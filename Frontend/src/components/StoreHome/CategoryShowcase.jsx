@@ -7,10 +7,27 @@ export const NAV_CATEGORIES = [
     label: 'Nam',
     icon: '👔',
     color: 'from-blue-500 to-indigo-600',
+    slug: 'nam',
     items: [
-      { group: 'Áo', links: ['Áo thun', 'Áo sơ mi', 'Áo polo', 'Áo khoác', 'Áo hoodie', 'Áo len'] },
-      { group: 'Quần', links: ['Quần jeans', 'Quần âu', 'Quần short', 'Quần jogger', 'Quần kaki'] },
-      { group: 'Phong cách', links: ['Streetwear', 'Smart Casual', 'Công sở', 'Thể thao', 'Outdoor'] },
+      {
+        group: 'Áo',
+        links: [
+          { label: 'Áo thun', slug: 'ao-thun-nam' },
+          { label: 'Áo sơ mi', slug: 'ao-so-mi-nam' },
+          { label: 'Áo polo', slug: 'ao-polo-nam' },
+          { label: 'Áo khoác', slug: 'ao-khoac-nam' },
+          { label: 'Áo hoodie', slug: 'ao-hoodie-nam' }
+        ]
+      },
+      {
+        group: 'Quần',
+        links: [
+          { label: 'Quần jeans', slug: 'quan-jeans-nam' },
+          { label: 'Quần âu', slug: 'quan-au-nam' },
+          { label: 'Quần short', slug: 'quan-short-nam' },
+          { label: 'Quần kaki', slug: 'quan-kaki-nam' }
+        ]
+      }
     ],
   },
   {
@@ -18,10 +35,34 @@ export const NAV_CATEGORIES = [
     label: 'Nữ',
     icon: '👗',
     color: 'from-pink-500 to-rose-500',
+    slug: 'nu',
     items: [
-      { group: 'Áo', links: ['Áo thun', 'Áo sơ mi', 'Áo croptop', 'Áo blouse', 'Áo khoác', 'Cardigan'] },
-      { group: 'Quần & Váy', links: ['Quần jeans', 'Quần palazzo', 'Chân váy ngắn', 'Chân váy dài', 'Overalls'] },
-      { group: 'Đồ bộ & Dress', links: ['Đầm dự tiệc', 'Đầm công sở', 'Set bộ', 'Jumpsuit', 'Maxi'] },
+      {
+        group: 'Áo',
+        links: [
+          { label: 'Áo thun', slug: 'ao-thun-nu' },
+          { label: 'Áo sơ mi', slug: 'ao-so-mi-nu' },
+          { label: 'Áo croptop', slug: 'ao-croptop' },
+          { label: 'Áo blouse', slug: 'ao-blouse' },
+          { label: 'Cardigan', slug: 'cardigan' }
+        ]
+      },
+      {
+        group: 'Quần & Váy',
+        links: [
+          { label: 'Quần jeans', slug: 'quan-jeans-nu' },
+          { label: 'Chân váy ngắn', slug: 'chan-vay-ngan' },
+          { label: 'Chân váy dài', slug: 'chan-vay-dai' }
+        ]
+      },
+      {
+        group: 'Đầm',
+        links: [
+          { label: 'Đầm dự tiệc', slug: 'dam-du-tiec' },
+          { label: 'Đầm công sở', slug: 'dam-cong-so' },
+          { label: 'Maxi', slug: 'dam-maxi' }
+        ]
+      }
     ],
   },
   {
@@ -29,10 +70,24 @@ export const NAV_CATEGORIES = [
     label: 'Giày',
     icon: '👟',
     color: 'from-amber-500 to-orange-500',
+    slug: 'giay',
     items: [
-      { group: 'Giày Nam', links: ['Sneaker', 'Giày tây', 'Giày lười', 'Giày thể thao', 'Boot'] },
-      { group: 'Giày Nữ', links: ['Cao gót', 'Sandal', 'Sneaker nữ', 'Giày bệt', 'Mules'] },
-      { group: 'Thể thao', links: ['Chạy bộ', 'Training', 'Bóng rổ', 'Bóng đá'] },
+      {
+        group: 'Giày Nam',
+        links: [
+          { label: 'Sneaker', slug: 'giay-nam' },
+          { label: 'Giày tây', slug: 'giay-tay' },
+          { label: 'Giày lười', slug: 'giay-luoi' }
+        ]
+      },
+      {
+        group: 'Giày Nữ',
+        links: [
+          { label: 'Cao gót', slug: 'giay-cao-got' },
+          { label: 'Sandal', slug: 'sandal' },
+          { label: 'Sneaker nữ', slug: 'sneaker-nu' }
+        ]
+      }
     ],
   },
   {
@@ -40,10 +95,24 @@ export const NAV_CATEGORIES = [
     label: 'Phụ kiện',
     icon: '👜',
     color: 'from-violet-500 to-purple-600',
+    slug: 'phu-kien',
     items: [
-      { group: 'Túi xách', links: ['Túi tote', 'Túi đeo chéo', 'Ba lô', 'Clutch', 'Túi xách tay'] },
-      { group: 'Trang sức', links: ['Vòng cổ', 'Nhẫn', 'Vòng tay', 'Bông tai', 'Ghim cài'] },
-      { group: 'Khác', links: ['Mũ & Nón', 'Thắt lưng', 'Ví', 'Kính mắt', 'Khăn quàng'] },
+      {
+        group: 'Túi xách',
+        links: [
+          { label: 'Túi tote', slug: 'tui-tote' },
+          { label: 'Túi đeo chéo', slug: 'tui-deo-cheo' },
+          { label: 'Ba lô', slug: 'ba-lo' }
+        ]
+      },
+      {
+        group: 'Trang sức',
+        links: [
+          { label: 'Vòng cổ', slug: 'vong-co' },
+          { label: 'Nhẫn', slug: 'nhan' },
+          { label: 'Vòng tay', slug: 'vong-tay' }
+        ]
+      }
     ],
   },
 ];

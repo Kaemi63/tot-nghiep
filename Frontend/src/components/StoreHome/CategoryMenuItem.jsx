@@ -44,7 +44,7 @@ const CategoryMenuItem = ({ cat, onFilterCategory, onOpenListing }) => {
       {/* Premium Trigger button */}
       <button
         ref={btnRef}
-        onClick={() => onOpenListing(cat.id)}
+        onClick={() => onOpenListing(cat.slug || cat.id, cat.label)}
         className={`
           relative group flex items-center justify-between w-full p-4 md:p-5 rounded-3xl
           bg-white border-2 overflow-hidden shadow-sm hover:shadow-xl
@@ -91,7 +91,7 @@ const CategoryMenuItem = ({ cat, onFilterCategory, onOpenListing }) => {
           <div className="flex items-center gap-2 mb-4">
             <h3 className="font-black text-slate-800 text-base uppercase tracking-widest">{cat.label}</h3>
             <button
-              onClick={() => { onOpenListing(cat.id); setOpen(false); }}
+              onClick={() => { onOpenListing(cat.slug || cat.id, cat.label); setOpen(false); }}
               className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full bg-gradient-to-r ${cat.color} text-white hover:opacity-80 transition-opacity`}
             >
               Xem tất cả →
@@ -107,15 +107,15 @@ const CategoryMenuItem = ({ cat, onFilterCategory, onOpenListing }) => {
                 </p>
                 <ul className="space-y-1.5">
                   {group.links.map((link) => (
-                    <li key={link}>
+                    <li key={link.slug || link.label}>
                       <button
                         onClick={() => {
-                          onFilterCategory(cat.id + '_' + link.toLowerCase().replace(/\s/g, '-'));
+                          onFilterCategory(link.slug || link.label, link.label);
                           setOpen(false);
                         }}
-                        className="text-sm text-slate-600 hover:text-indigo-600 hover:translate-x-1 transition-all duration-150 block"
+                        className="text-sm text-slate-600 hover:text-indigo-600 hover:translate-x-1 transition-all duration-150 block text-left"
                       >
-                        {link}
+                        {link.label}
                       </button>
                     </li>
                   ))}
@@ -127,7 +127,7 @@ const CategoryMenuItem = ({ cat, onFilterCategory, onOpenListing }) => {
           {/* Footer CTA */}
           <div className="mt-4 pt-4 border-t border-slate-100">
             <button
-              onClick={() => { onOpenListing(cat.id); setOpen(false); }}
+              onClick={() => { onOpenListing(cat.slug || cat.id, cat.label); setOpen(false); }}
               className={`w-full py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r ${cat.color} hover:opacity-90 transition-opacity`}
             >
               Xem tất cả {cat.label} →

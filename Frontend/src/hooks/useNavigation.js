@@ -5,6 +5,7 @@ export const useNavigation = () => {
   const [previousSection, setPreviousSection] = useState('storeHome');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategoryLabel, setSelectedCategoryLabel] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const openProductDetail = (product) => {
@@ -24,8 +25,9 @@ export const useNavigation = () => {
   const openOrderHistory = () => setActiveSection('orderHistory');
   const openWishlist = () => setActiveSection('wishlist');
 
-  const openProductListing = (category = '') => {
+  const openProductListing = (category = '', label = '') => {
     setSelectedCategory(category);
+    setSelectedCategoryLabel(label || category);
     setActiveSection('productListing');
   };
 
@@ -40,6 +42,7 @@ export const useNavigation = () => {
     previousSection,
     selectedProduct,
     selectedCategory,
+    selectedCategoryLabel,
     searchQuery,
     openProductDetail,
     handleBack,

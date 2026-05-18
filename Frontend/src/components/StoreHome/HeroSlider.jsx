@@ -7,6 +7,7 @@ const HERO_SLIDES = [
     sub: 'Phong cách streetwear — tối giản mà đẳng cấp',
     cta: 'Khám phá ngay',
     ctaId: 'nam',
+    ctaLabel: 'Thời trang Nam',
     gradient: 'from-slate-900/70 via-slate-900/40 to-transparent',
     image: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1600&q=80',
     accent: '#6366f1',
@@ -17,6 +18,7 @@ const HERO_SLIDES = [
     sub: 'Hơn 500 mẫu mới mỗi tuần — cập nhật liên tục',
     cta: 'Mua sắm ngay',
     ctaId: 'nu',
+    ctaLabel: 'Thời trang Nữ',
     gradient: 'from-rose-900/60 via-rose-900/30 to-transparent',
     image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=80',
     accent: '#f43f5e',
@@ -27,6 +29,7 @@ const HERO_SLIDES = [
     sub: 'Sneaker, sandal, túi xách — trọn bộ style',
     cta: 'Xem bộ sưu tập',
     ctaId: 'giay',
+    ctaLabel: 'Giày & Dép',
     gradient: 'from-amber-900/60 via-amber-900/30 to-transparent',
     image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1600&q=80',
     accent: '#f59e0b',
@@ -52,7 +55,7 @@ const HeroSlider = ({ onOpenListing }) => {
   useEffect(() => {
     const t = setInterval(() => goTo((idx + 1) % HERO_SLIDES.length), 5000);
     return () => clearInterval(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
 
   const slide = HERO_SLIDES[idx];
@@ -85,7 +88,7 @@ const HeroSlider = ({ onOpenListing }) => {
           <p className="mt-3 text-white/80 text-base md:text-lg">{slide.sub}</p>
           <div className="mt-6 flex gap-3">
             <button
-              onClick={() => onOpenListing(slide.ctaId)}
+              onClick={() => onOpenListing(slide.ctaId, slide.ctaLabel)}
               className="px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg hover:scale-105 transition-transform"
               style={{ background: slide.accent }}
             >

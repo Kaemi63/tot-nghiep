@@ -7,12 +7,22 @@ import { useAllProducts } from '../../services/useProducts';
 
 const PER_PAGE = 9;
 
-const applyFilters = (products, { category, searchQuery, brandFilter, priceRange, sort }) => {
+// Map slug → tiêu đề mô tả đầy đủ
+const CATEGORY_DESCRIPTIONS = {
+  'nam': { title: 'Thời trang Nam', sub: 'Các sản phẩm thời trang dành riêng cho Nam' },
+  'nu': { title: 'Thời trang Nữ', sub: 'Các sản phẩm thời trang dành riêng cho Nữ' },
+  'giay': { title: 'Giày & Dép', sub: 'Bộ sưu tập giày dép cho Nam và Nữ' },
+  'phu-kien': { title: 'Phụ kiện thời trang', sub: 'Túi xách, trang sức và phụ kiện thời trang' },
+};
+
+const getCategoryMeta = (slug, label) => {
+  if (slug && CATEGORY_DESCRIPTIONS[slug]) return CATEGORY_DESCRIPTIONS[slug];
+  if (label) return { title: label, sub: `Khám phá các sản phẩm thuộc danh mục ${label}` };
+  return { title: 'Tất cả sản phẩm', sub: 'Khám phá toàn bộ bộ sưu tập của chúng tôi' };
+};
+
+const applyFilters = (products, { searchQuery, brandFilter, priceRange, sort }) => {
   let list = [...products];
-  if (category) list = list.filter((p) => {
-    const catName = p.categories?.slug || p.categories?.name || p.category || '';
-    return catName.toLowerCase().includes(category.toLowerCase());
-  });
   if (searchQuery) list = list.filter((p) => {
     const name = p.name?.toLowerCase() || '';
     const brand = (p.brands?.name || p.brand || '').toLowerCase();
@@ -43,24 +53,28 @@ const SkeletonCard = () => (
   </div>
 );
 
-const ProductListing = ({ category, searchQuery, onSelectProduct, onAddToCart, onAddToWishlist }) => {
+const ProductListing = ({ categorySlug, categoryLabel, searchQuery, onSelectProduct, onAddToCart, onAddToWishlist }) => {
   const [brandFilter, setBrandFilter] = useState('');
   const [priceRange, setPriceRange] = useState('');
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
-  const { products: raw, loading, error } = useAllProducts({ limit: 100 });
+  // Pass categorySlug to hook so DB does the filtering
+  const { products: raw, loading, error } = useAllProducts({ categorySlug, limit: 100 });
 
-  const filtered = useMemo(() => applyFilters(raw, { category, searchQuery, brandFilter, priceRange, sort }), [raw, category, searchQuery, brandFilter, priceRange, sort]);
+  const filtered = useMemo(() => applyFilters(raw, { searchQuery, brandFilter, priceRange, sort }), [raw, searchQuery, brandFilter, priceRange, sort]);
   const totalPage = Math.ceil(filtered.length / PER_PAGE);
   const slice = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   const brands = [...new Set(raw.map((p) => p.brands?.name || p.brand).filter(Boolean))];
 
   const handlePage = (n) => { setPage(n); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
+  const catMeta = getCategoryMeta(categorySlug, categoryLabel);
+
   return (
     <PageShell>
       <div className="mb-6">
-        <h1 className="text-3xl font-extrabold text-slate-800">{category ? `Danh mục: ${category}` : 'Tất cả sản phẩm'}</h1>
+        <h1 className="text-3xl font-extrabold text-slate-800">{catMeta.title}</h1>
+        <p className="text-slate-500 text-sm mt-1">{catMeta.sub}</p>
         {searchQuery && <p className="text-slate-500 text-sm mt-1">Kết quả tìm kiếm cho "<strong>{searchQuery}</strong>"</p>}
       </div>
 

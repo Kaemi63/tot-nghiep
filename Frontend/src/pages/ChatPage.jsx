@@ -19,14 +19,14 @@ import { chatbotService } from '../services/chatbotService';
 
 const ChatPage = ({ onLogout }) => {
   const [chatKey, setChatKey] = useState(0);
-  const { userProfile, token} = useAuthProfile();
+  const { userProfile, token } = useAuthProfile();
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   // --- Hooks ---
   const {
     activeSection, setActiveSection,
-    selectedProduct, selectedCategory, searchQuery,
+    selectedProduct, selectedCategory, selectedCategoryLabel, searchQuery,
     openProductDetail, handleBack,
     openStoreHome, openMyAccount, openCart,
     openCheckout, openOrderHistory, openWishlist,
@@ -43,7 +43,7 @@ const ChatPage = ({ onLogout }) => {
       fetchOrderHistory();
     }
   }, [activeSection]);
-// Hàm fetch danh sách session từ DB
+  // Hàm fetch danh sách session từ DB
   const fetchSessions = async () => {
     if (!token) return;
     try {
@@ -96,40 +96,40 @@ const ChatPage = ({ onLogout }) => {
   };
 
   const handleDeleteSession = async (sessionId) => {
-  if (!window.confirm("Bạn có chắc chắn muốn xóa cuộc hội thoại này không?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa cuộc hội thoại này không?")) return;
 
-  try {
-    await chatbotService.deleteSession(sessionId, token);
-    toast.success("Đã xóa cuộc trò chuyện");
+    try {
+      await chatbotService.deleteSession(sessionId, token);
+      toast.success("Đã xóa cuộc trò chuyện");
 
-    // Fetch lại danh sách sessions từ server để đảm bảo đồng bộ
-    await fetchSessions();
+      // Cập nhật state trực tiếp để UI phản hồi ngay lập tức, tránh bị cache
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
 
-    // 2. Nếu session bị xóa là session đang active, hãy reset về null
-    if (activeSessionId === sessionId) {
-      setActiveSessionId(null);
-      setActiveSection('chat'); // Quay về màn hình chào của chat
-      setChatKey((prev) => prev + 1);
+      // Nếu session bị xóa là session đang active, hãy reset về null
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+        setActiveSection('chat');
+        setChatKey((prev) => prev + 1);
+      }
+    } catch (err) {
+      toast.error("Không thể xóa cuộc trò chuyện");
+      console.error(err);
     }
-  } catch (err) {
-    toast.error("Không thể xóa cuộc trò chuyện");
-    console.error(err);
-  }
-};
+  };
 
   const handleSessionSelect = (id) => {
     setActiveSessionId(id); // Thay đổi session đang chọn
     setActiveSection('chat');
     setChatKey((prev) => prev + 1); // Force render lại ChatWindow để load lịch sử mới
   };
-  
+
   const handleOrderSuccess = () => {
     clearCart();
     fetchCart();
     setActiveSection('orderHistory');
     toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
   };
-  
+
 
   return (
     <div className={`flex h-screen w-full bg-white ${activeSection === 'myAccount' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
@@ -140,7 +140,7 @@ const ChatPage = ({ onLogout }) => {
         onOpenAccount={openMyAccount}
         onOpenCart={openCart}
         onOpenOrderHistory={openOrderHistory}
-        sessions={sessions} 
+        sessions={sessions}
         activeSessionId={activeSessionId}
         onDeleteSession={handleDeleteSession}
         onSessionSelect={handleSessionSelect}
@@ -154,7 +154,7 @@ const ChatPage = ({ onLogout }) => {
         onCategorySelect={openProductListing}
       />
       <main className="flex-1 flex flex-col relative">
-        
+
 
         {activeSection === 'storeHome' && (
           <StoreHome
@@ -168,6 +168,7 @@ const ChatPage = ({ onLogout }) => {
         {activeSection === 'productListing' && (
           <ProductListing
             categorySlug={selectedCategory}
+            categoryLabel={selectedCategoryLabel}
             searchQuery={searchQuery}
             onSelectProduct={openProductDetail}
             onAddToCart={addToCart}
@@ -215,10 +216,10 @@ const ChatPage = ({ onLogout }) => {
           <WishlistPage onAddToCart={addToCart} />
         )}
         {activeSection === 'chat' && (
-          <ChatWindow 
+          <ChatWindow
             key={`${chatKey}-${activeSessionId}`}
-            token={token } 
-            userProfile={userProfile} 
+            token={token}
+            userProfile={userProfile}
             sessionId={activeSessionId}
           />
         )}
