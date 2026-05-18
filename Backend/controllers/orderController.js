@@ -237,6 +237,9 @@ exports.updateOrderStatus = async (req, res) => {
 
     const tryUpdateField = async (field) => {
       const payload = { [field]: status };
+      if (status === 'delivered') {
+        payload['payment_status'] = 'paid';
+      }
       const { data, error } = await supabaseAdmin
         .from('orders')
         .update(payload)

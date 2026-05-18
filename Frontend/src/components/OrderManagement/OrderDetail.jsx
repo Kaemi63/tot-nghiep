@@ -19,7 +19,7 @@ const OrderDetail = ({ order, onClose }) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'shipped': return 'bg-purple-100 text-purple-800';
+      case 'shipping': return 'bg-purple-100 text-purple-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -30,7 +30,7 @@ const OrderDetail = ({ order, onClose }) => {
     switch (status) {
       case 'pending': return 'Chờ xác nhận';
       case 'confirmed': return 'Đã xác nhận';
-      case 'shipped': return 'Đang giao';
+      case 'shipping': return 'Đang giao';
       case 'delivered': return 'Đã giao';
       case 'cancelled': return 'Đã hủy';
       default: return status;
@@ -65,6 +65,11 @@ const OrderDetail = ({ order, onClose }) => {
                 <div className="flex items-center">
                   <CreditCard size={16} className="text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">Thanh toán: {order.payment_method}</span>
+                </div>
+                <div className="flex items-center">
+                  <span className={`text-sm font-medium ${order.payment_status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
+                    {order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                  </span>
                 </div>
                 <div>
                   <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(order.status)}`}>
