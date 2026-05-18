@@ -32,12 +32,13 @@ exports.createSession = async (req, res) => {
 // 2. LẤY DANH SÁCH CÁC CUỘC HỘI THOẠI (CHO SIDEBAR)
 exports.getSessions = async (req, res) => {
   try {
-    const userId = req.user.id; // Lấy từ protect middleware
+    const userId = req.user.id;
 
     const { data, error } = await supabase
       .from('chat_sessions')
       .select(`
         id,
+        title,
         started_at,
         chat_messages(content)
       `)
@@ -46,16 +47,75 @@ exports.getSessions = async (req, res) => {
 
     if (error) throw error;
 
-    // Format lại để lấy tin nhắn đầu tiên làm title
-    const result = data.map(s => ({
-      id: s.id,
-      title: s.chat_messages[0]?.content?.substring(0, 35) || "Cuộc trò chuyện mới",
-      date: s.started_at
-    }));
+    const result = data.map(s => {
+      let firstContent = s.chat_messages[0]?.content;
+      if (typeof firstContent === 'string') {
+        try {
+          const parsed = JSON.parse(firstContent);
+          firstContent = parsed?.content ?? firstContent;
+        } catch {
+          // ignore parse error
+        }
+      }
+
+      return {
+        id: s.id,
+        title: s.title || firstContent?.substring(0, 35) || "Cuộc trò chuyện mới",
+        date: s.started_at
+      };
+    });
 
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// 2.5. ĐỔI TÊN CUỘC HỘI THOẠI
+exports.renameSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { title } = req.body;
+    const userId = req.user.id;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Tên không được để trống' });
+    }
+
+    // Kiểm tra session thuộc về user này
+    const { data: session, error: sessionError } = await supabase
+      .from('chat_sessions')
+      .select('user_id')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({ error: 'Không tìm thấy cuộc hội thoại' });
+    }
+    if (session.user_id !== userId) {
+      return res.status(403).json({ error: 'Bạn không có quyền đổi tên cuộc hội thoại này' });
+    }
+
+    const { error: updateError } = await supabase
+      .from('chat_sessions')
+      .update({ title: title.trim() })
+      .eq('id', sessionId);
+
+    if (updateError) throw updateError;
+
+    res.json({ message: 'Đã đổi tên thành công', title: title.trim() });
+  } catch (error) {
+    console.error('Rename session error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const parseChatMessageContent = (content) => {
+  if (typeof content !== 'string') return content;
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
   }
 };
 
@@ -72,13 +132,24 @@ exports.getHistory = async (req, res) => {
 
     if (error) throw error;
 
-    // Map lại role cho đúng chuẩn Vercel AI SDK (user/assistant)
-    const history = data.map(msg => ({
-      id: msg.id,
-      role: msg.sender_role === 'bot' ? 'assistant' : 'user',
-      content: msg.content,
-      createdAt: msg.created_at
-    }));
+    const history = data.map(msg => {
+      let content = msg.content;
+      let attachments = undefined;
+
+      const parsed = parseChatMessageContent(msg.content);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        attachments = parsed.attachments;
+        content = parsed.content ?? '';
+      }
+
+      return {
+        id: msg.id,
+        role: msg.sender_role === 'bot' ? 'assistant' : 'user',
+        content,
+        attachments,
+        createdAt: msg.created_at,
+      };
+    });
 
     res.json(history);
   } catch (error) {
@@ -145,8 +216,15 @@ exports.handleChat = async (req, res) => {
     try {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.role === 'user') {
+        const savedContent = lastMessage.attachments ? JSON.stringify({
+          content: lastMessage.content,
+          attachments: lastMessage.attachments.map(({ type, filename }) => ({ type, filename })),
+        }) : lastMessage.content;
+
         await supabase.from('chat_messages').insert({
-          session_id: sessionId, sender_role: 'user', content: lastMessage.content
+          session_id: sessionId,
+          sender_role: 'user',
+          content: savedContent
         });
       }
     } catch (e) { console.error("Lỗi lưu user:", e.message); }
@@ -232,10 +310,27 @@ exports.handleChat = async (req, res) => {
 
     // 5. Gọi AI (Manual Stream)
     try {
+      const formattedMessages = messages.map((msg) => {
+        const attachmentsText = msg.attachments?.length
+          ? msg.attachments.map((att) => `- [${att.type}] ${att.filename}`).join('\n')
+          : '';
+
+        const content = msg.attachments?.length
+          ? msg.content
+            ? `${msg.content}\n\nCác tệp đính kèm:\n${attachmentsText}`
+            : `Các tệp đính kèm:\n${attachmentsText}`
+          : msg.content;
+
+        return {
+          role: msg.role,
+          content,
+        };
+      });
+
       const result = await streamText({
         model: google('gemini-2.5-flash'),
         system: systemInstruction,
-        messages: messages,
+        messages: formattedMessages,
         onFinish: async ({ text }) => {
           await supabase.from('chat_messages').insert({
             session_id: sessionId, sender_role: 'bot', content: text,

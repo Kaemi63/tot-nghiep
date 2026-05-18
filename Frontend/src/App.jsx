@@ -13,6 +13,10 @@ function App() {
   });
 
   const [currentPage, setCurrentPage] = useState('home');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('fsa_theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
 
   // 2. useEffect để kiểm tra quyền truy cập ngay khi load App
   useEffect(() => {
@@ -49,8 +53,14 @@ function App() {
     console.log("Đã đăng xuất và chuyển về Home");
   };
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.body.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('fsa_theme', theme);
+  }, [theme]);
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900'}`}>
       {/* Trang chủ */}
       {currentPage === 'home' && (
         <MainPage onNavigateToLogin={handleGoToLogin} onNavigateToRegister={handleGoToRegister} />
@@ -72,7 +82,7 @@ function App() {
 
       {/* Trang Chat (User thường) */}
       {currentPage === 'chat' && (
-        <ChatPage onLogout={handleLogout} />
+        <ChatPage onLogout={handleLogout} theme={theme} setTheme={setTheme} />
       )}
 
       {/* Trang Admin */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2, LogOut } from "lucide-react";
+import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2, LogOut, Pencil, Check, X } from "lucide-react";
 
 const Sidebar = ({ 
   onNewChat, 
@@ -13,11 +13,41 @@ const Sidebar = ({
   activeSessionId,
   onSessionSelect, 
   onDeleteSession,
+  onRenameSession,
   isCreatingChat = false,
   onLogout,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true); // Trạng thái đóng/mở list lịch sử
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  // State để theo dõi session đang được đổi tên
+  const [editingId, setEditingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
+
+  const handleStartEdit = (e, session) => {
+    e.stopPropagation();
+    setEditingId(session.id);
+    setEditingTitle(session.title);
+  };
+
+  const handleConfirmEdit = async (e, sessionId) => {
+    e.stopPropagation();
+    if (editingTitle.trim() && onRenameSession) {
+      await onRenameSession(sessionId, editingTitle.trim());
+    }
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const handleCancelEdit = (e) => {
+    e.stopPropagation();
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const handleKeyDown = (e, sessionId) => {
+    if (e.key === 'Enter') handleConfirmEdit(e, sessionId);
+    if (e.key === 'Escape') handleCancelEdit(e);
+  };
 
   return (
     <div className={`${collapsed ? 'w-20' : 'w-[300px]'} border-r border-slate-100 flex flex-col h-full bg-slate-50/30 shrink-0 transition-all duration-300`}>
@@ -86,28 +116,67 @@ const Sidebar = ({
                       : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
-                    {/* Nút chọn Session */}
-                    <button 
-                      onClick={() => onSessionSelect(session.id)}
-                      className="flex items-center gap-3 flex-1 text-left truncate"
-                    >
-                      <MessageSquare size={16} className={activeSessionId === session.id ? 'text-indigo-600' : 'text-slate-400'} />
-                      <span className={`text-sm truncate ${activeSessionId === session.id ? 'font-medium' : ''}`}>
-                        {session.title}
-                      </span>
-                    </button>
+                    {/* Chế độ đổi tên: hiện input */}
+                    {editingId === session.id ? (
+                      <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          autoFocus
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, session.id)}
+                          className="flex-1 text-sm px-2 py-0.5 rounded-lg border border-indigo-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 min-w-0"
+                          maxLength={60}
+                        />
+                        <button
+                          onClick={(e) => handleConfirmEdit(e, session.id)}
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md"
+                          title="Lưu"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="p-1 text-slate-400 hover:bg-slate-100 rounded-md"
+                          title="Hủy"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Nút chọn Session */}
+                        <button 
+                          onClick={() => onSessionSelect(session.id)}
+                          className="flex items-center gap-3 flex-1 text-left truncate"
+                        >
+                          <MessageSquare size={16} className={activeSessionId === session.id ? 'text-indigo-600' : 'text-slate-400'} />
+                          <span className={`text-sm truncate ${activeSessionId === session.id ? 'font-medium' : ''}`}>
+                            {session.title}
+                          </span>
+                        </button>
 
-                    {/* NÚT XÓA: Chỉ hiện khi hover vào dòng (group-hover) */}
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation(); // Ngăn chặn sự kiện click vào button gây chọn session
-                        onDeleteSession(session.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 transition-all rounded-md hover:bg-red-50"
-                      title="Xóa cuộc hội thoại"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                        {/* Nút action: Chỉ hiện khi hover */}
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                          <button 
+                            onClick={(e) => handleStartEdit(e, session)}
+                            className="p-1.5 hover:text-indigo-600 transition-all rounded-md hover:bg-indigo-50"
+                            title="Đổi tên cuộc hội thoại"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSession(session.id);
+                            }}
+                            className="p-1.5 hover:text-red-500 transition-all rounded-md hover:bg-red-50"
+                            title="Xóa cuộc hội thoại"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))
               )}

@@ -9,5 +9,6 @@ router.get('/sessions', protect, chatbotController.getSessions);
 router.get('/history/:sessionId', protect, chatbotController.getHistory);
 router.post('/session', protect, chatbotController.createSession);
 router.delete('/session/:sessionId', protect, chatbotController.deleteSession);
+router.patch('/session/:sessionId/rename', protect, chatbotController.renameSession);
 
 module.exports = router;

@@ -17,7 +17,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import { useAuthProfile } from '../hooks/useAuthProfile';
 import { chatbotService } from '../services/chatbotService';
 
-const ChatPage = ({ onLogout }) => {
+const ChatPage = ({ onLogout, theme, setTheme }) => {
   const [chatKey, setChatKey] = useState(0);
   const { userProfile, token } = useAuthProfile();
   const [sessions, setSessions] = useState([]);
@@ -101,11 +101,7 @@ const ChatPage = ({ onLogout }) => {
     try {
       await chatbotService.deleteSession(sessionId, token);
       toast.success("Đã xóa cuộc trò chuyện");
-
-      // Cập nhật state trực tiếp để UI phản hồi ngay lập tức, tránh bị cache
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-
-      // Nếu session bị xóa là session đang active, hãy reset về null
       if (activeSessionId === sessionId) {
         setActiveSessionId(null);
         setActiveSection('chat');
@@ -113,6 +109,18 @@ const ChatPage = ({ onLogout }) => {
       }
     } catch (err) {
       toast.error("Không thể xóa cuộc trò chuyện");
+      console.error(err);
+    }
+  };
+
+  const handleRenameSession = async (sessionId, newTitle) => {
+    try {
+      await chatbotService.renameSession(sessionId, newTitle, token);
+      // Cập nhật state trực tiếp, không cần gọi lại API
+      setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title: newTitle } : s));
+      toast.success("Đã đổi tên cuộc trò chuyện");
+    } catch (err) {
+      toast.error("Không thể đổi tên cuộc trò chuyện");
       console.error(err);
     }
   };
@@ -132,7 +140,7 @@ const ChatPage = ({ onLogout }) => {
 
 
   return (
-    <div className={`flex h-screen w-full bg-white ${activeSection === 'myAccount' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+    <div className={`flex h-screen w-full ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900'} ${activeSection === 'myAccount' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       <Sidebar
         onNewChat={handleNewChat}
         userProfile={userProfile}
@@ -143,6 +151,7 @@ const ChatPage = ({ onLogout }) => {
         sessions={sessions}
         activeSessionId={activeSessionId}
         onDeleteSession={handleDeleteSession}
+        onRenameSession={handleRenameSession}
         onSessionSelect={handleSessionSelect}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
@@ -221,6 +230,8 @@ const ChatPage = ({ onLogout }) => {
             token={token}
             userProfile={userProfile}
             sessionId={activeSessionId}
+            theme={theme}
+            setTheme={setTheme}
           />
         )}
 

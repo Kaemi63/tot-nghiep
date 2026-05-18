@@ -31,5 +31,15 @@ export const chatbotService = {
   createSession: async (token) => {
     const response = await axios.post(`${API_URL}/session`, {}, getAuthHeaders(token));
     return response.data;
+  },
+
+  // 5. Đổi tên cuộc hội thoại
+  renameSession: async (sessionId, title, token) => {
+    const response = await axios.patch(
+      `${API_URL}/session/${sessionId}/rename`,
+      { title },
+      getAuthHeaders(token)
+    );
+    return response.data;
   }
 };

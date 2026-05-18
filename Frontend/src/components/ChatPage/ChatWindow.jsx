@@ -8,13 +8,21 @@ import 'katex/dist/katex.min.css';
 import { chatbotService } from '../../services/chatbotService'; 
 import toast from 'react-hot-toast';
 
-const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
+const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTheme }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [sessionId, setSessionId] = useState(propSessionId);
+  const [isPlusOpen, setIsPlusOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [draftAttachments, setDraftAttachments] = useState([]);
   const scrollRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const plusContainerRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const recognitionBaseRef = useRef('');
 
   // 1. Khởi tạo lịch sử khi có sessionId từ ChatPage
   useEffect(() => {
@@ -59,16 +67,19 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || isLoading || !sessionId) return;
+    if (!text && draftAttachments.length === 0) return;
+    if (isLoading || !sessionId) return;
 
     // BƯỚC 1: Hiện tin nhắn User lên giao diện ngay lập tức (Optimistic Update)
     const userMsg = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
+      attachments: draftAttachments.map(({ type, filename, dataUrl }) => ({ type, filename, dataUrl })),
     };
     setMessages((prev) => [...prev, userMsg]);
-    setInput(''); // Xóa ô nhập ngay
+    setInput('');
+    setDraftAttachments([]);
     setIsLoading(true);
 
     try {
@@ -80,7 +91,7 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
           'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({
-          messages: [...messages, userMsg], // Gửi kèm lịch sử
+          messages: [...messages, userMsg],
           sessionId: sessionId,
         }),
       });
@@ -128,6 +139,119 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
     }
   };
 
+  // Plus menu handlers
+  const handlePlusToggle = (e) => {
+    e.stopPropagation();
+    setIsPlusOpen((v) => !v);
+  };
+
+  const addAttachment = (file, type) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const preview = type === 'image' ? URL.createObjectURL(file) : null;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDraftAttachments((prev) => [
+        ...prev,
+        {
+          id,
+          type,
+          filename: file.name,
+          preview,
+          dataUrl: reader.result,
+        },
+      ]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSelectImage = (e) => {
+    e?.stopPropagation?.();
+    setIsPlusOpen(false);
+    imageInputRef.current?.click();
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    addAttachment(file, 'image');
+    e.target.value = null;
+  };
+
+  const handleSelectFile = (e) => {
+    e?.stopPropagation?.();
+    setIsPlusOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    addAttachment(file, 'file');
+    e.target.value = null;
+  };
+
+  const removeDraftAttachment = (attachmentId) => {
+    setDraftAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+  };
+
+  // Close plus menu when clicking outside
+  useEffect(() => {
+    const onDocClick = () => setIsPlusOpen(false);
+    if (isPlusOpen) document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [isPlusOpen]);
+
+  // Microphone (SpeechRecognition) handlers
+  const startRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Trình duyệt không hỗ trợ nhận dạng giọng nói');
+      return;
+    }
+    recognitionBaseRef.current = input || '';
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
+      setInput(recognitionBaseRef.current + transcript);
+    };
+    recognition.onerror = (err) => {
+      console.error('Speech error', err);
+      toast.error('Lỗi khi ghi âm');
+      setIsRecording(false);
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error(err);
+      toast.error('Không thể bắt đầu ghi âm');
+    }
+  };
+
+  const stopRecognition = () => {
+    try {
+      recognitionRef.current?.stop();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = (e) => {
+    e?.stopPropagation?.();
+    if (isRecording) stopRecognition();
+    else startRecognition();
+  };
+
   if (isInitializing) {
     return (
       <div className="h-screen flex items-center justify-center bg-white w-full">
@@ -146,8 +270,16 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
           FSA AI Assistant <ChevronDown size={18} />
         </button>
         <div className="flex items-center gap-4 text-slate-400">
-           <Sun size={20} className="cursor-pointer hover:text-orange-400 transition-colors" />
-           <Moon size={20} className="cursor-pointer hover:text-indigo-600 transition-colors" />
+           <Sun
+             size={20}
+             onClick={() => setTheme('light')}
+             className={`cursor-pointer transition-colors ${theme === 'light' ? 'text-orange-400' : 'hover:text-orange-400'}`}
+           />
+           <Moon
+             size={20}
+             onClick={() => setTheme('dark')}
+             className={`cursor-pointer transition-colors ${theme === 'dark' ? 'text-indigo-400' : 'hover:text-indigo-600'}`}
+           />
            <Home size={20} className="hover:text-indigo-600 transition-colors cursor-pointer" />
         </div>
       </header>
@@ -178,9 +310,36 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
                     {m.role === 'user' ? (userProfile?.fullname || 'Bạn') : 'FSA AI Assistant'}
                   </span>
                   <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base prose-p:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {m.content}
-                    </ReactMarkdown>
+                    {m.attachments?.length > 0 ? (
+                      <div className="space-y-3">
+                        {m.attachments.map((att, index) => (
+                          <div key={index} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            {att.type === 'image' ? (
+                              <img src={att.dataUrl || att.preview} alt={att.filename} className="h-16 w-16 rounded-md object-cover" />
+                            ) : (
+                              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-white text-xs font-semibold text-slate-600">Tệp</div>
+                            )}
+                            <div className="truncate">
+                              <p className="font-semibold text-slate-700">{att.filename}</p>
+                              <p className="text-xs text-slate-500">{att.type === 'image' ? 'Ảnh' : 'Tệp đính kèm'}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {m.content && (
+                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            {m.content}
+                          </ReactMarkdown>
+                        )}
+                      </div>
+                    ) : m.type === 'image' ? (
+                      <img src={m.content} alt={m.filename || 'image'} className="rounded-md max-w-xs" />
+                    ) : m.type === 'file' ? (
+                      <a href={m.content} download={m.filename} className="text-indigo-600 underline">{m.filename}</a>
+                    ) : (
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        {m.content}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 </div>
               </div>
@@ -203,33 +362,63 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId }) => {
         <div className="max-w-3xl mx-auto relative">
           <form 
             onSubmit={handleFormSubmit}
-            className="relative flex items-center bg-[#f0f4f9] rounded-[28px] px-5 py-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-slate-200 shadow-sm"
+            className="relative flex flex-col gap-3 bg-[#f0f4f9] rounded-[28px] px-5 py-4 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-slate-200 shadow-sm"
           >
-            <button type="button" className="p-2 text-slate-500 hover:bg-slate-200 rounded-full transition-colors">
-              <Plus size={22} />
-            </button>
-            <input 
-              type="text" 
-              autoComplete="off" 
-              value={input} 
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Hỏi FSA AI về phối đồ, chất liệu..."
-              className="flex-1 bg-transparent py-3 px-4 outline-none text-slate-700 text-lg placeholder:text-slate-500"
-              disabled={isLoading || !sessionId}
-            />
-            <div className="flex items-center gap-1">
-              <button type="button" className="p-2.5 text-slate-500 hover:bg-slate-200 rounded-full">
-                <Mic size={22} />
-              </button>
-              {(input || "").trim() !== "" && (
+            {draftAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {draftAttachments.map((att) => (
+                  <div key={att.id} className="flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {att.type === 'image' ? (
+                      <img src={att.preview} alt={att.filename} className="h-10 w-10 rounded-md object-cover" />
+                    ) : (
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white text-xs font-semibold text-slate-600">T</span>
+                    )}
+                    <span className="truncate max-w-[140px]">{att.filename}</span>
+                    <button type="button" onClick={() => removeDraftAttachment(att.id)} className="text-slate-400 hover:text-slate-600">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="relative" ref={plusContainerRef}>
+                <button onClick={handlePlusToggle} type="button" className="p-2 text-slate-500 hover:bg-slate-200 rounded-full transition-colors">
+                  <Plus size={22} />
+                </button>
+
+                {isPlusOpen && (
+                  <div onClick={(e) => e.stopPropagation()} className="absolute left-0 bottom-14 bg-white rounded-md shadow-lg py-1 z-50 w-44">
+                    <button onClick={handleSelectImage} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">Thêm ảnh từ thiết bị</button>
+                    <button onClick={handleSelectFile} type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">Thêm tệp</button>
+                  </div>
+                )}
+
+                <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                <input ref={fileInputRef} type="file" onChange={handleFileChange} style={{ display: 'none' }} />
+              </div>
+              <input 
+                type="text" 
+                autoComplete="off" 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Hỏi FSA AI về phối đồ, chất liệu..."
+                className="flex-1 bg-transparent py-3 px-4 outline-none text-slate-700 text-lg placeholder:text-slate-500"
+                disabled={isLoading || !sessionId}
+              />
+              <div className="flex items-center gap-1">
+                <div className="relative">
+                  <button onClick={toggleRecording} type="button" className={`p-2.5 rounded-full ${isRecording ? 'bg-red-100 text-red-600' : 'text-slate-500 hover:bg-slate-200'}`}>
+                    <Mic size={22} />
+                  </button>
+                  {isRecording && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                </div>
                 <button 
                   type="submit" 
-                  disabled={isLoading || !sessionId} 
+                  disabled={isLoading || !sessionId || (!input.trim() && draftAttachments.length === 0)} 
                   className="p-2.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all animate-in zoom-in shadow-md disabled:bg-slate-300"
                 >
                    <SendHorizontal size={20} />
                 </button>
-              )}
+              </div>
             </div>
           </form>
           <p className="text-center text-[10px] text-slate-400 mt-4 tracking-widest uppercase font-bold">
