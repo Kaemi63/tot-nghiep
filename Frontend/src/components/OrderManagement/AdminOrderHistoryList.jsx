@@ -24,8 +24,8 @@ const AdminOrderHistoryList = ({ orders = [], onRequestStatusChange }) => {
 
   const statusText = (status) => {
     switch (status) {
-      case 'pending': return 'Chờ xác nhận';
       case 'confirmed': return 'Đã xác nhận';
+      case 'processing': return 'Đang xử lý';
       case 'shipping': return 'Đang giao';
       case 'delivered': return 'Đã giao';
       case 'cancelled': return 'Đã hủy';
@@ -35,8 +35,8 @@ const AdminOrderHistoryList = ({ orders = [], onRequestStatusChange }) => {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'pending': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'confirmed': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'confirmed': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'processing': return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'shipping': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case 'delivered': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'cancelled': return 'bg-red-50 text-red-700 border-red-200';

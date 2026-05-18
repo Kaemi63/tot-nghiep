@@ -111,42 +111,86 @@ exports.createOrder = async (req, res) => {
 
     if (itemsError) throw itemsError;
 
+    // 5.5. Giảm stock_quantity sau khi tạo order thành công
+    // Dùng service role client để bypass RLS khi cập nhật stock
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+    );
 
-  if (coupon_id) {
-    console.log("DEBUG: Bắt đầu lưu coupon cho Order:", order.id);
+    for (const item of cart.cart_items) {
+      if (item.product_variant_id) {
+        // Trường hợp 1: Sản phẩm có biến thể (variant) → giảm stock trong product_variants
+        const { data: variant } = await supabaseAdmin
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', item.product_variant_id)
+          .single();
 
-    const { data: cpData, error: cpError } = await supabase
-      .from('coupons')
-      .select('used_count')
-      .eq('id', coupon_id)
-      .single();
-    
-    if (cpError) console.error("Lỗi lấy used_count:", cpError.message);
+        if (variant) {
+          const newStock = Math.max(0, variant.stock_quantity - item.quantity);
+          const { error: stockErr } = await supabaseAdmin
+            .from('product_variants')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_variant_id);
+          if (stockErr) console.error('Lỗi giảm stock variant:', stockErr.message);
+        }
+      } else {
+        // Trường hợp 2: Sản phẩm không có biến thể → giảm stock trong bảng products
+        const { data: product } = await supabaseAdmin
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
 
-    const { error: updateError } = await supabase
-      .from('coupons')
-      .update({ used_count: (cpData?.used_count || 0) + 1 })
-      .eq('id', coupon_id);
-
-    if (updateError) console.error("Lỗi update used_count:", updateError.message);
-
-    console.log("DEBUG: Đang insert vào coupon_usages với userId:", userId);
-    const { error: usageError } = await supabase
-      .from('coupon_usages')
-      .insert([{
-        coupon_id: coupon_id,
-        user_id: userId, 
-        order_id: order.id
-      }]);
-
-    if (usageError) {
-      console.error("LỖI CHI TIẾT LƯU COUPON_USAGES:", usageError);
-    } else {
-      console.log("Lưu coupon_usages thành công!");
+        if (product) {
+          const newStock = Math.max(0, product.stock_quantity - item.quantity);
+          const { error: stockErr } = await supabaseAdmin
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id);
+          if (stockErr) console.error('Lỗi giảm stock product:', stockErr.message);
+        }
+      }
     }
-  }
 
-    // 6. Ghi lại lịch sử trạng thái (Thêm changed_by)
+    // 6. Xử lý coupon (nếu có)
+    if (coupon_id) {
+      console.log("DEBUG: Bắt đầu lưu coupon cho Order:", order.id);
+
+      const { data: cpData, error: cpError } = await supabase
+        .from('coupons')
+        .select('used_count')
+        .eq('id', coupon_id)
+        .single();
+      
+      if (cpError) console.error("Lỗi lấy used_count:", cpError.message);
+
+      const { error: updateError } = await supabase
+        .from('coupons')
+        .update({ used_count: (cpData?.used_count || 0) + 1 })
+        .eq('id', coupon_id);
+
+      if (updateError) console.error("Lỗi update used_count:", updateError.message);
+
+      console.log("DEBUG: Đang insert vào coupon_usages với userId:", userId);
+      const { error: usageError } = await supabase
+        .from('coupon_usages')
+        .insert([{
+          coupon_id: coupon_id,
+          user_id: userId, 
+          order_id: order.id
+        }]);
+
+      if (usageError) {
+        console.error("LỖI CHI TIẾT LƯU COUPON_USAGES:", usageError);
+      } else {
+        console.log("Lưu coupon_usages thành công!");
+      }
+    }
+
+    // 7. Ghi lại lịch sử trạng thái (Thêm changed_by)
     await supabase.from('order_status_histories').insert([{
       order_id: order.id,
       status: 'pending',
@@ -154,7 +198,7 @@ exports.createOrder = async (req, res) => {
       changed_by: userId // Đảm bảo có cột này để không lỗi DB
     }]);
 
-    // 7. Xóa sạch giỏ hàng (Giữ nguyên)
+    // 8. Xóa sạch giỏ hàng (Giữ nguyên)
     await supabase.from('cart_items').delete().eq('cart_id', cart.id);
 
     res.status(201).json({ 

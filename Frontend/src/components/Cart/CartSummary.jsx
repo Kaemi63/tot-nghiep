@@ -2,7 +2,7 @@ import React from 'react';
 import { fmt } from '../../utils/format.js';
 
 const CartSummary = ({ subtotal, discount, total, appliedCoupon, onCheckout, itemCount }) => {
-  const shippingFee = subtotal >= 500000 ? 0 : 35000;
+  const shippingFee = 20000;
   const grandTotal = Math.max(0, total + shippingFee);
 
   return (
@@ -15,25 +15,14 @@ const CartSummary = ({ subtotal, discount, total, appliedCoupon, onCheckout, ite
         </div>
         <div className="flex justify-between text-slate-600">
           <span>Phí vận chuyển</span>
-          {shippingFee === 0 ? (
-            <span className="text-emerald-600 font-semibold">Miễn phí</span>
-          ) : (
-            <span className="font-semibold">{fmt(shippingFee)}</span>
-          )}
+          <span className="font-semibold">{fmt(shippingFee)}</span>
         </div>
-        
-        {/* Nếu bạn muốn xóa hẳn dòng giảm giá ở đây thì xóa đoạn này */}
+
         {appliedCoupon && (
           <div className="flex justify-between text-emerald-600">
             <span>Giảm ({appliedCoupon.code})</span>
             <span className="font-semibold">−{fmt(discount)}</span>
           </div>
-        )}
-
-        {subtotal < 500000 && (
-          <p className="text-xs text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100">
-            Mua thêm <b>{fmt(500000 - subtotal)}</b> để được <b>Miễn phí vận chuyển</b>
-          </p>
         )}
       </div>
 

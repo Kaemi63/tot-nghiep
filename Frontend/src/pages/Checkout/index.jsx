@@ -53,8 +53,8 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
     handleApplyCoupon 
   } = useCoupon(subtotal);
 
-  const shippingFee = subtotal >= 500000 ? 0 : (data.shipping === 'express' ? 35000 : 20000);
-  
+  const shippingFee = data.shipping === 'express' ? 35000 : 20000;
+
   // --- 2. CẬP NHẬT TỔNG THANH TOÁN (TRỪ CHIẾT KHẤU) ---
   const grandTotal = Math.max(0, subtotal + shippingFee - discount);
 

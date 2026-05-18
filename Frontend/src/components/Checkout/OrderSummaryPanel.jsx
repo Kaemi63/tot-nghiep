@@ -12,8 +12,7 @@ const OrderSummaryPanel = ({
   discount = 0 
 }) => {
   const SHIPPING_PRICES = { standard: 20000, express: 35000 };
-  const shippingFee = subtotal >= 500000 ? 0 : (SHIPPING_PRICES[shippingMethod] ?? 20000);
-  // Cập nhật tính tổng: cộng phí ship và trừ đi tiền giảm giá
+  const shippingFee = SHIPPING_PRICES[shippingMethod] ?? 20000;
   const total = Math.max(0, subtotal + shippingFee - discount);
 
   return (
@@ -52,12 +51,9 @@ const OrderSummaryPanel = ({
         
         <div className="flex justify-between text-slate-600">
           <span>Phí vận chuyển {shippingMethod === 'express' ? '(Nhanh)' : '(Tiêu chuẩn)'}</span>
-          <span className={`font-semibold ${shippingFee === 0 ? 'text-emerald-600' : ''}`}>
-            {shippingFee === 0 ? 'Miễn phí' : fmt(shippingFee)}
-          </span>
+          <span className="font-semibold">{fmt(shippingFee)}</span>
         </div>
 
-        {/* Hiển thị dòng giảm giá nếu có mã được áp dụng */}
         {appliedCoupon && (
           <div className="flex justify-between text-emerald-600">
             <span>Giảm giá ({appliedCoupon.code})</span>
@@ -65,7 +61,6 @@ const OrderSummaryPanel = ({
           </div>
         )}
 
-        {/* --- PHẦN MÃ GIẢM GIÁ DỜI QUA ĐÂY --- */}
         <form onSubmit={onApplyCoupon} className="py-2 space-y-2">
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mã giảm giá</label>
           <div className="flex gap-2">

@@ -2,8 +2,8 @@ import React from 'react';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tất cả trạng thái' },
-  { value: 'pending', label: 'Chờ xác nhận' },
   { value: 'confirmed', label: 'Đã xác nhận' },
+  { value: 'processing', label: 'Đang xử lý' },
   { value: 'shipping', label: 'Đang giao' },
   { value: 'delivered', label: 'Đã giao' },
   { value: 'cancelled', label: 'Đã hủy' },

@@ -12,10 +12,10 @@ const OrderCard = ({ order, isSelected, onSelect, onClose }) => {
     : 'Đang cập nhật';
 
   const orderStatus = order.order_status || order.status || 'Chưa cập nhật';
-  const paymentStatus = order.payment_status || order.payment_status || 'pending';
+  const paymentStatus = order.payment_status || order.payment_status || 'confirmed';
 
   // Điều kiện hiện nút Đánh giá
-  const canReview = paymentStatus === 'paid' && (orderStatus === 'confirmed' || orderStatus === 'Đã xác nhận');
+  const canReview = paymentStatus === 'paid' && (orderStatus === 'delivered' || orderStatus === 'Đã giao');
 
   const handleOpenReview = (e, product) => {
     e.stopPropagation();

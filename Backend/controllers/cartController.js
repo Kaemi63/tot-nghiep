@@ -34,6 +34,43 @@ exports.addToCart = async (req, res) => {
   const userId = req.user.id;
 
   try {
+    // BƯỚC 0: Check stock trước khi thêm vào giỏ
+    if (product_variant_id) {
+      // Trường hợp 1: Sản phẩm có biến thể → check stock trong product_variants
+      const { data: variant, error: variantError } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', product_variant_id)
+        .single();
+
+      if (variantError || !variant) {
+        return res.status(400).json({ error: "Sản phẩm không tồn tại" });
+      }
+
+      if (variant.stock_quantity < (quantity || 1)) {
+        return res.status(400).json({ 
+          error: `Hết hàng. Chỉ còn ${variant.stock_quantity} sản phẩm` 
+        });
+      }
+    } else {
+      // Trường hợp 2: Sản phẩm không có biến thể → check stock trong bảng products
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', product_id)
+        .single();
+
+      if (productError || !product) {
+        return res.status(400).json({ error: "Sản phẩm không tồn tại" });
+      }
+
+      if (product.stock_quantity < (quantity || 1)) {
+        return res.status(400).json({ 
+          error: `Hết hàng. Chỉ còn ${product.stock_quantity} sản phẩm` 
+        });
+      }
+    }
+
     // BƯỚC 1: Lấy hoặc Tạo giỏ hàng cho User
     let { data: cart, error: cartError } = await supabase
       .from('carts')
@@ -111,13 +148,42 @@ exports.updateCartItem = async (req, res) => {
     // Kiểm tra xem cart_item này có thuộc về giỏ hàng của user này không (để bảo mật)
     const { data: item, error: findError } = await supabase
       .from('cart_items')
-      .select('id, carts!inner(user_id)')
+      .select('id, product_variant_id, carts!inner(user_id)')
       .eq('id', cart_item_id)
       .eq('carts.user_id', userId)
       .single();
 
     if (findError || !item) {
       return res.status(404).json({ error: "Không tìm thấy sản phẩm trong giỏ" });
+    }
+
+    // Check stock
+    if (item.product_variant_id && quantity > 0) {
+      // Trường hợp 1: Sản phẩm có biến thể → check stock trong product_variants
+      const { data: variant } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', item.product_variant_id)
+        .single();
+
+      if (variant && variant.stock_quantity < quantity) {
+        return res.status(400).json({ 
+          error: `Hết hàng. Chỉ còn ${variant.stock_quantity} sản phẩm` 
+        });
+      }
+    } else if (!item.product_variant_id && quantity > 0) {
+      // Trường hợp 2: Sản phẩm không có biến thể → check stock trong bảng products
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock_quantity, id')
+        .eq('id', item.product_id || item.product?.id)
+        .single();
+
+      if (product && product.stock_quantity < quantity) {
+        return res.status(400).json({ 
+          error: `Hết hàng. Chỉ còn ${product.stock_quantity} sản phẩm` 
+        });
+      }
     }
 
     // Cập nhật số lượng mới
