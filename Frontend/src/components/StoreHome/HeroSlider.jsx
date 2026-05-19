@@ -6,7 +6,7 @@ const HERO_SLIDES = [
     title: 'Bộ sưu tập\nHè 2026',
     sub: 'Phong cách streetwear — tối giản mà đẳng cấp',
     cta: 'Khám phá ngay',
-    ctaId: 'nam',
+    ctaId: 'mens-fashion',
     ctaLabel: 'Thời trang Nam',
     gradient: 'from-slate-900/70 via-slate-900/40 to-transparent',
     image: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1600&q=80',
@@ -17,7 +17,7 @@ const HERO_SLIDES = [
     title: 'Thời trang Nữ\nQuyến rũ & Tự tin',
     sub: 'Hơn 500 mẫu mới mỗi tuần — cập nhật liên tục',
     cta: 'Mua sắm ngay',
-    ctaId: 'nu',
+    ctaId: 'womens-fashion',
     ctaLabel: 'Thời trang Nữ',
     gradient: 'from-rose-900/60 via-rose-900/30 to-transparent',
     image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=80',
@@ -28,7 +28,7 @@ const HERO_SLIDES = [
     title: 'Giày & Phụ kiện\nHot trend',
     sub: 'Sneaker, sandal, túi xách — trọn bộ style',
     cta: 'Xem bộ sưu tập',
-    ctaId: 'giay',
+    ctaId: 'footwear',
     ctaLabel: 'Giày & Dép',
     gradient: 'from-amber-900/60 via-amber-900/30 to-transparent',
     image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1600&q=80',
@@ -36,12 +36,6 @@ const HERO_SLIDES = [
   },
 ];
 
-/**
- * HeroSlider – auto-playing hero banner with 3 slides, arrows, and dot navigation.
- *
- * Props:
- *   onOpenListing(categoryId) – navigate to product listing
- */
 const HeroSlider = ({ onOpenListing }) => {
   const [idx, setIdx] = useState(0);
   const [animating, setAnimating] = useState(false);

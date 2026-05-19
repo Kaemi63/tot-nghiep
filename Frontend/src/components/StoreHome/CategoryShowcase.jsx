@@ -7,7 +7,7 @@ export const NAV_CATEGORIES = [
     label: 'Nam',
     icon: '👔',
     color: 'from-blue-500 to-indigo-600',
-    slug: 'nam',
+    slug: 'mens-fashion',
     items: [
       {
         group: 'Áo',
@@ -15,7 +15,7 @@ export const NAV_CATEGORIES = [
           { label: 'Áo thun', slug: 'ao-thun-nam' },
           { label: 'Áo sơ mi', slug: 'ao-so-mi-nam' },
           { label: 'Áo polo', slug: 'ao-polo-nam' },
-          { label: 'Áo khoác', slug: 'ao-khoac-nam' },
+          { label: 'Áo khoác', slug: 'coats-jackets' },
           { label: 'Áo hoodie', slug: 'ao-hoodie-nam' }
         ]
       },
@@ -35,7 +35,7 @@ export const NAV_CATEGORIES = [
     label: 'Nữ',
     icon: '👗',
     color: 'from-pink-500 to-rose-500',
-    slug: 'nu',
+    slug: 'womens-fashion',
     items: [
       {
         group: 'Áo',
@@ -44,7 +44,7 @@ export const NAV_CATEGORIES = [
           { label: 'Áo sơ mi', slug: 'ao-so-mi-nu' },
           { label: 'Áo croptop', slug: 'ao-croptop' },
           { label: 'Áo blouse', slug: 'ao-blouse' },
-          { label: 'Cardigan', slug: 'cardigan' }
+          { label: 'Đồ Dệt Kim', slug: 'knitwear' }
         ]
       },
       {
@@ -70,14 +70,14 @@ export const NAV_CATEGORIES = [
     label: 'Giày',
     icon: '👟',
     color: 'from-amber-500 to-orange-500',
-    slug: 'giay',
+    slug: 'footwear',
     items: [
       {
         group: 'Giày Nam',
         links: [
-          { label: 'Sneaker', slug: 'giay-nam' },
-          { label: 'Giày tây', slug: 'giay-tay' },
-          { label: 'Giày lười', slug: 'giay-luoi' }
+          { label: 'Sneaker', slug: 'sneakers' },
+          { label: 'Giày tây', slug: 'oxfords-derbies' },
+          { label: 'Giày lười', slug: 'loafers' }
         ]
       },
       {
@@ -95,22 +95,22 @@ export const NAV_CATEGORIES = [
     label: 'Phụ kiện',
     icon: '👜',
     color: 'from-violet-500 to-purple-600',
-    slug: 'phu-kien',
+    slug: 'accessories',
     items: [
       {
         group: 'Túi xách',
         links: [
           { label: 'Túi tote', slug: 'tui-tote' },
           { label: 'Túi đeo chéo', slug: 'tui-deo-cheo' },
-          { label: 'Ba lô', slug: 'ba-lo' }
+          { label: 'Ba lô', slug: 'ba-lo' },
+          { label: 'Đồ Da', slug: 'leather-goods' }
         ]
       },
       {
         group: 'Trang sức',
         links: [
-          { label: 'Vòng cổ', slug: 'vong-co' },
-          { label: 'Nhẫn', slug: 'nhan' },
-          { label: 'Vòng tay', slug: 'vong-tay' }
+          { label: 'Phụ Kiện', slug: 'accessories' },
+          { label: 'Nước Hoa', slug: 'fragrance' }
         ]
       }
     ],

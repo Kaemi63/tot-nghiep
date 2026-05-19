@@ -9,10 +9,10 @@ const PER_PAGE = 9;
 
 // Map slug → tiêu đề mô tả đầy đủ
 const CATEGORY_DESCRIPTIONS = {
-  'nam': { title: 'Thời trang Nam', sub: 'Các sản phẩm thời trang dành riêng cho Nam' },
-  'nu': { title: 'Thời trang Nữ', sub: 'Các sản phẩm thời trang dành riêng cho Nữ' },
-  'giay': { title: 'Giày & Dép', sub: 'Bộ sưu tập giày dép cho Nam và Nữ' },
-  'phu-kien': { title: 'Phụ kiện thời trang', sub: 'Túi xách, trang sức và phụ kiện thời trang' },
+  'mens-fashion': { title: 'Thời trang Nam', sub: 'Các sản phẩm thời trang dành riêng cho Nam' },
+  'womens-fashion': { title: 'Thời trang Nữ', sub: 'Các sản phẩm thời trang dành riêng cho Nữ' },
+  'footwear': { title: 'Giày & Dép', sub: 'Bộ sưu tập giày dép cho Nam và Nữ' },
+  'accessories': { title: 'Phụ kiện thời trang', sub: 'Túi xách, trang sức và phụ kiện thời trang' },
 };
 
 const getCategoryMeta = (slug, label) => {

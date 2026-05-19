@@ -1,14 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-/**
- * CategoryMenuItem – a nav button that shows a mega-menu dropdown on hover.
- * The menu automatically flips direction (up/down) based on available viewport space.
- *
- * Props:
- *   cat         – { id, label, icon, color, items: [{ group, links[] }] }
- *   onFilterCategory(id) – called when a sub-link is clicked
- *   onOpenListing(id)    – called to navigate to listing page
- */
 const CategoryMenuItem = ({ cat, onFilterCategory, onOpenListing }) => {
   const [open, setOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);

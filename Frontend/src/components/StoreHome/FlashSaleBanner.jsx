@@ -1,11 +1,5 @@
 import React from 'react';
 
-/**
- * FlashSaleBanner – promotional CTA with gradient background.
- *
- * Props:
- *   onOpenListing() – navigate to product listing
- */
 const FlashSaleBanner = ({ onOpenListing }) => (
   <section className="rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-700 p-8 md:p-10 flex flex-col md:flex-row items-center gap-6 shadow-xl">
     <div className="flex-1 text-white">
