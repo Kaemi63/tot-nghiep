@@ -11,8 +11,8 @@ const PER_PAGE = 9;
 const CATEGORY_DESCRIPTIONS = {
   'mens-fashion': { title: 'Thời trang Nam', sub: 'Các sản phẩm thời trang dành riêng cho Nam' },
   'womens-fashion': { title: 'Thời trang Nữ', sub: 'Các sản phẩm thời trang dành riêng cho Nữ' },
-  'footwear': { title: 'Giày & Dép', sub: 'Bộ sưu tập giày dép cho Nam và Nữ' },
-  'accessories': { title: 'Phụ kiện thời trang', sub: 'Túi xách, trang sức và phụ kiện thời trang' },
+  'leather-goods': { title: 'Đồ da', sub: 'Túi, ví và phụ kiện da cao cấp' },
+  'jewelry': { title: 'Trang sức', sub: 'Vòng tay, dây chuyền và nhẫn thời trang' },
 };
 
 const getCategoryMeta = (slug, label) => {
