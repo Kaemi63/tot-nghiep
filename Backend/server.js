@@ -11,7 +11,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const couponRoutes = require('./routes/coupon');
 const reviewRoutes = require('./routes/review');
 const chatbotRoutes = require('./routes/chatbotRoutes');
-
+const bannerRoutes = require('./routes/banner');
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 require('dotenv').config();
@@ -27,6 +27,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/chat', chatbotRoutes);
+app.use('/api/banners', bannerRoutes);
 
 const checkSupabaseConnection = async () => {
   try {
