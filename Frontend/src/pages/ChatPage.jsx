@@ -16,6 +16,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useWishlist } from '../hooks/useWishlist';
 import { useAuthProfile } from '../hooks/useAuthProfile';
 import { chatbotService } from '../services/chatbotService';
+import ChatWidgetPopup from '../components/ChatPage/ChatPopup';
 
 const ChatPage = ({ onLogout, theme, setTheme }) => {
   const [chatKey, setChatKey] = useState(0);
@@ -234,9 +235,13 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
             setTheme={setTheme}
           />
         )}
-
         {activeSection === 'myAccount' && <MyAccount />}
       </main>
+      <ChatWidgetPopup 
+        token={token} 
+        userProfile={userProfile} 
+        currentSection={activeSection} 
+      />
     </div>
   );
 };

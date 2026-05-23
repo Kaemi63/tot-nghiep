@@ -332,6 +332,10 @@ exports.handleChat = async (req, res) => {
         system: systemInstruction,
         messages: formattedMessages,
         onFinish: async ({ text }) => {
+          if (sessionId === 'temporary-popup-chat') {
+            console.log('Phiên chat popup tạm thời: Bỏ qua bước lưu database.');
+            return;
+          }
           await supabase.from('chat_messages').insert({
             session_id: sessionId, sender_role: 'bot', content: text,
           });
