@@ -30,7 +30,7 @@ const ChatWidgetPopup = ({ token, userProfile, currentSection }) => {
           className={`bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col mb-4 transition-all duration-300 origin-bottom-right ${
             isMinimized 
               ? 'w-72 h-14' 
-              : 'w-[380px] sm:w-[420px] h-[550px]'
+              : 'w-[480px] sm:w-[550px] h-[550px]'
           }`}
         >
           {/* Header Popup (Cố định ở đỉnh) */}
@@ -61,12 +61,12 @@ const ChatWidgetPopup = ({ token, userProfile, currentSection }) => {
           </div>
 
           <div 
-            className={`flex-1 min-h-0 w-full bg-slate-50 relative flex flex-col overflow-hidden ${
+            className={`flex-1 min-h-0 w-full bg-slate-50 relative flex flex-col ${
               isMinimized ? 'hidden' : ''
             }`}
           >
 
-            <div className="popup-chat-mode w-full h-full max-h-[calc(550px-52px)] overflow-hidden flex flex-col [&_header]:hidden [&_aside]:hidden"> 
+            <div className="popup-chat-mode w-full h-full overflow-y-auto overflow-x-hidden flex flex-col [&_header]:hidden [&_aside]:hidden"> 
               <ChatWindow 
                 key={`${instanceKey}-${popupSessionId}`}
                 token={token}
