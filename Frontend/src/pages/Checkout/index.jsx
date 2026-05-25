@@ -8,7 +8,7 @@ import { supabase } from '../../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { useCoupon } from '../../hooks/useCoupon'; // Import hook xử lý coupon
 
-const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
+const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder, onPaymentMethodSelected }) => {
   const [data, setData] = useState({ 
     fullname: '', phone: '', email: '', 
     province: '', district: '', ward: '', address: '', 
@@ -86,7 +86,17 @@ const CheckoutPage = ({ cartItems, subtotal, onBack, onPlaceOrder }) => {
       const result = await orderService.createOrder(session.access_token, orderData);
       setOrderResult(result);
       toast.success('Đặt hàng thành công!');
-      if (onPlaceOrder) onPlaceOrder();
+      
+      // Call payment method handler if provided
+      if (onPaymentMethodSelected) {
+        onPaymentMethodSelected({
+          paymentMethod: data.payment.toLowerCase(),
+          order: result,
+          totalAmount: grandTotal
+        });
+      } else if (onPlaceOrder) {
+        onPlaceOrder();
+      }
     } catch (error) {
       toast.error(error.message || 'Có lỗi xảy ra khi đặt hàng');
     } finally {

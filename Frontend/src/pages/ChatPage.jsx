@@ -9,6 +9,11 @@ import CartPage from './Cart';
 import CheckoutPage from './Checkout';
 import OrderHistoryPage from './OrderHistory';
 import WishlistPage from './Wishlist';
+import PaymentHistoryPage from './PaymentHistory';
+import CODPayment from '../components/PaymentMethods/CODPayment';
+import BankTransferPayment from '../components/PaymentMethods/BankTransferPayment';
+import MomoPayment from '../components/PaymentMethods/MomoPayment';
+import VNPayPayment from '../components/PaymentMethods/VNPayPayment';
 import toast from 'react-hot-toast';
 import { useCart } from '../hooks/useCart';
 import { useOrder } from '../hooks/useOrder';
@@ -28,10 +33,13 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
   const {
     activeSection, setActiveSection,
     selectedProduct, selectedCategory, selectedCategoryLabel, searchQuery,
+    paymentMethod, paymentOrder,
     openProductDetail, handleBack,
     openStoreHome, openMyAccount, openCart,
     openCheckout, openOrderHistory, openWishlist,
     openProductListing, viewSearchResults,
+    openPaymentHistory,
+    openCODPayment, openBankTransferPayment, openMomoPayment, openVNPayPayment,
   } = useNavigation();
 
   const { cartItems, loading, fetchCart, addToCart, updateCartQuantity, removeCartItem, clearCart } = useCart();
@@ -139,6 +147,31 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
     toast.success("Đơn hàng đã được hệ thống tiếp nhận!");
   };
 
+  // Handle payment method selection after checkout
+  const handlePaymentMethodSelected = ({ paymentMethod, order, totalAmount }) => {
+    switch(paymentMethod) {
+      case 'cod':
+        openCODPayment(order);
+        break;
+      case 'bank_transfer':
+        openBankTransferPayment(order);
+        break;
+      case 'momo':
+        openMomoPayment(order);
+        break;
+      case 'vnpay':
+        openVNPayPayment(order);
+        break;
+      default:
+        handleOrderSuccess();
+    }
+  };
+
+  // Handle payment completion
+  const handlePaymentComplete = () => {
+    handleOrderSuccess();
+  };
+
 
   return (
     <div className={`flex h-screen w-full ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900'} ${activeSection === 'myAccount' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
@@ -157,6 +190,7 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         onOpenWishlist={openWishlist}
+        onOpenPaymentHistory={openPaymentHistory}
         isStore={activeSection !== 'chat'}
         onLogout={onLogout}
         isCreatingChat={isCreatingChat}
@@ -210,6 +244,7 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
             cartItems={cartItems}
             subtotal={subtotal}
             onPlaceOrder={handleOrderSuccess}
+            onPaymentMethodSelected={handlePaymentMethodSelected}
             onBack={openCart}
           />
         )}
@@ -225,6 +260,43 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
         {activeSection === 'wishlist' && (
           <WishlistPage onAddToCart={addToCart} />
         )}
+
+        {activeSection === 'paymentHistory' && (
+          <PaymentHistoryPage />
+        )}
+
+        {activeSection === 'codPayment' && paymentOrder && (
+          <CODPayment
+            order={paymentOrder}
+            onComplete={handlePaymentComplete}
+            onBack={openCheckout}
+          />
+        )}
+
+        {activeSection === 'bankTransferPayment' && paymentOrder && (
+          <BankTransferPayment
+            order={paymentOrder}
+            onComplete={handlePaymentComplete}
+            onBack={openCheckout}
+          />
+        )}
+
+        {activeSection === 'momoPayment' && paymentOrder && (
+          <MomoPayment
+            order={paymentOrder}
+            onComplete={handlePaymentComplete}
+            onBack={openCheckout}
+          />
+        )}
+
+        {activeSection === 'vnpayPayment' && paymentOrder && (
+          <VNPayPayment
+            order={paymentOrder}
+            onComplete={handlePaymentComplete}
+            onBack={openCheckout}
+          />
+        )}
+
         {activeSection === 'chat' && (
           <ChatWindow
             key={`${chatKey}-${activeSessionId}`}

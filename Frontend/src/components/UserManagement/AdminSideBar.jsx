@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Package, LayoutDashboard, Menu, LogOut, ChevronRight, ShoppingCart } from 'lucide-react';
+import { Users, Package, LayoutDashboard, Menu, LogOut, ChevronRight, ShoppingCart, CreditCard } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 const AdminSidebar = ({ activePage, setActivePage, onLogout }) => {
@@ -34,6 +34,10 @@ const AdminSidebar = ({ activePage, setActivePage, onLogout }) => {
         <button onClick={() => setActivePage('orders')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-150 ${activePage === 'orders' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800/60 hover:text-white'}`}>
           <ShoppingCart size={19} className={activePage === 'orders' ? "opacity-100" : "opacity-60"} /> 
           {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Quản lý đơn hàng</span>}
+        </button>
+        <button onClick={() => setActivePage('payments')} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-150 ${activePage === 'payments' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800/60 hover:text-white'}`}>
+          <CreditCard size={19} className={activePage === 'payments' ? "opacity-100" : "opacity-60"} /> 
+          {!collapsed && <span className="flex-1 text-left font-extrabold text-sm tracking-tight">Quản lý thanh toán</span>}
         </button>
       </nav>
       <div className="p-4 border-t border-slate-800">

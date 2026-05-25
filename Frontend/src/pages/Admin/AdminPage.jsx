@@ -6,6 +6,7 @@ import UserHeader from '../../components/UserManagement/UserHeader';
 import UserManagementContent from './UserManagement'; 
 import ProductManagementContent from './ProductManagement';
 import AdminOrderManagement from './AdminOrderManagement';
+import AdminPaymentManagement from './AdminPaymentManagement';
 
 const AdminDashboard = ({ onLogout }) => {
   // Quản lý trạng thái: 'users', 'products', 'orders'
@@ -36,6 +37,10 @@ const AdminDashboard = ({ onLogout }) => {
 
           {activePage === 'orders' && (
             <AdminOrderManagement />
+          )}
+
+          {activePage === 'payments' && (
+            <AdminPaymentManagement />
           )}
         </main>
       </div>

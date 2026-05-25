@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2, LogOut, Pencil, Check, X } from "lucide-react";
+import { Calendar, Zap, Bell, MessageSquarePlus, ShoppingBag, Menu, MessageSquare, ChevronRight, ChevronDown, Trash2, LogOut, Pencil, Check, X, CreditCard } from "lucide-react";
 
 const Sidebar = ({ 
   onNewChat, 
@@ -7,7 +7,8 @@ const Sidebar = ({
   onOpenAccount, 
   onOpenCart, 
   onOpenOrderHistory, 
-  onOpenWishlist, 
+  onOpenWishlist,
+  onOpenPaymentHistory, 
   userProfile,
   sessions = [],
   activeSessionId,
@@ -88,6 +89,10 @@ const Sidebar = ({
           <button onClick={onOpenWishlist} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} w-full ${collapsed ? 'p-2' : 'p-4'} rounded-2xl hover:bg-slate-100 transition-all text-slate-500 hover:text-slate-800`}>
             <Bell size={20} />
             {!collapsed && <span className="font-semibold text-[0.95rem]">Yêu thích</span>}
+          </button>
+          <button onClick={onOpenPaymentHistory} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} w-full ${collapsed ? 'p-2' : 'p-4'} rounded-2xl hover:bg-slate-100 transition-all text-slate-500 hover:text-slate-800`}>
+            <CreditCard size={20} />
+            {!collapsed && <span className="font-semibold text-[0.95rem]">Lịch sử thanh toán</span>}
           </button>
         </nav>
       </div>
