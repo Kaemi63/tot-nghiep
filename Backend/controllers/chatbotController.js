@@ -206,7 +206,74 @@ exports.deleteSession = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-// 5. XỬ LÝ TIN NHẮN MỚI, GỌI AI, TRẢ VỀ STREAM
+
+const STOPWORDS_VI = new Set([
+  'tôi', 'bạn', 'mình', 'cho', 'cái', 'cái', 'của', 'và', 'với',
+  'là', 'có', 'không', 'được', 'muốn', 'cần', 'tìm', 'mua', 'xem',
+  'hỏi', 'về', 'này', 'kia', 'đó', 'thì', 'mà', 'ở', 'trong',
+  'nào', 'gi', 'gì', 'sao', 'thế', 'nên', 'hay', 'hoặc', 'ơi',
+  'ạ', 'nhé', 'nha', 'vậy', 'thôi', 'lắm', 'quá', 'rất', 'một',
+]);
+
+const normalize = (str = '') =>
+  str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim();
+
+const tokenize = (text) =>
+  normalize(text)
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !STOPWORDS_VI.has(t));
+
+/**
+ * @param {string} userQuery 
+ * @param {Array}  products   
+ * @param {number} topK       
+ * @returns {Array}
+ */
+const filterRelevantProducts = (userQuery, products = [], topK = 10) => {
+  if (!userQuery || products.length === 0) return products.slice(0, topK);
+
+  const queryTokens = tokenize(userQuery);
+  if (queryTokens.length === 0) return products.slice(0, topK);
+
+  const scored = products.map((p) => {
+    const productText = normalize([
+      p.name,
+      p.categories?.name,
+      p.product_variants?.map((v) => `${v.color} ${v.size}`).join(' '),
+      p.product_specifications?.map((s) => `${s.spec_name} ${s.spec_value}`).join(' '),
+    ]
+      .filter(Boolean)
+      .join(' '));
+
+    let score = 0;
+    for (const token of queryTokens) {
+      if (productText.includes(token)) {
+        const nameText = normalize(p.name || '');
+        score += nameText.includes(token) ? 2 : 1;
+      }
+    }
+
+    return { product: p, score };
+  });
+
+  const relevant = scored.filter((s) => s.score > 0);
+
+  if (relevant.length === 0) {
+    return products.slice(0, topK);
+  }
+
+  return relevant
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map((s) => s.product);
+};
+
 exports.handleChat = async (req, res) => {
   try {
     const { messages, sessionId } = req.body;
@@ -229,7 +296,7 @@ exports.handleChat = async (req, res) => {
       }
     } catch (e) { console.error("Lỗi lưu user:", e.message); }
 
-    // 2. THU THẬP DỮ LIỆU (Dùng cấu trúc bạn thích)
+    // 2. THU THẬP DỮ LIỆU
     let storeContext = "";
     try {
       const { data: sessionData } = await supabase.from('chat_sessions').select('user_id').eq('id', sessionId).single();
@@ -243,7 +310,7 @@ exports.handleChat = async (req, res) => {
         }
       }
 
-      const { data: products } = await supabase
+      const { data: allProducts } = await supabase
         .from('products')
         .select(`
           name, base_price, 
@@ -254,7 +321,16 @@ exports.handleChat = async (req, res) => {
         .eq('status', 'active')
         .limit(30);
 
-      // SỬA Ở ĐÂY: Tạo bảng tra cứu chặt chẽ hơn để AI không nhầm
+      // ── SMART SEARCH: lọc sản phẩm liên quan trước khi đưa cho AI ──
+      const lastUserMessage = messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === 'user')?.content || '';
+
+      const products = filterRelevantProducts(lastUserMessage, allProducts || [], 10);
+      // ────────────────────────────────────────────────────────────────
+
+      // Tạo bảng tra cứu chặt chẽ để AI không nhầm thông tin
       const prodDetails = products?.map((p, index) => {
         const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
         const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
@@ -289,7 +365,7 @@ exports.handleChat = async (req, res) => {
       faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
     } catch (e) {}
 
-    // 4. PROMPT SIÊU CHẶT CHẼ (Fix lỗi nhầm size/màu)
+    // 4. PROMPT SIÊU CHẶT CHẼ
     const systemInstruction = `
       Bạn là Virtual Stylist cao cấp của FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
       
