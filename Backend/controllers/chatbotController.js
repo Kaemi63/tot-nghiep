@@ -208,12 +208,12 @@ exports.deleteSession = async (req, res) => {
 };
 
 const STOPWORDS_VI = new Set([
-  'tôi', 'bạn', 'mình', 'cho', 'cái', 'cái', 'của', 'và', 'với',
+  'tôi', 'bạn', 'mình', 'cho', 'cái', 'của', 'và', 'với',
   'là', 'có', 'không', 'được', 'muốn', 'cần', 'tìm', 'mua', 'xem',
   'hỏi', 'về', 'này', 'kia', 'đó', 'thì', 'mà', 'ở', 'trong',
   'nào', 'gi', 'gì', 'sao', 'thế', 'nên', 'hay', 'hoặc', 'ơi',
   'ạ', 'nhé', 'nha', 'vậy', 'thôi', 'lắm', 'quá', 'rất', 'một',
-]);
+].map(str => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')));
 
 const normalize = (str = '') =>
   str
@@ -227,14 +227,8 @@ const normalize = (str = '') =>
 const tokenize = (text) =>
   normalize(text)
     .split(/\s+/)
-    .filter((t) => t.length > 1 && !STOPWORDS_VI.has(t));
+    .filter((t) => t.length > 0 && !STOPWORDS_VI.has(t)); 
 
-/**
- * @param {string} userQuery 
- * @param {Array}  products   
- * @param {number} topK       
- * @returns {Array}
- */
 const filterRelevantProducts = (userQuery, products = [], topK = 10) => {
   if (!userQuery || products.length === 0) return products.slice(0, topK);
 
@@ -263,10 +257,7 @@ const filterRelevantProducts = (userQuery, products = [], topK = 10) => {
   });
 
   const relevant = scored.filter((s) => s.score > 0);
-
-  if (relevant.length === 0) {
-    return products.slice(0, topK);
-  }
+  if (relevant.length === 0) return products.slice(0, topK);
 
   return relevant
     .sort((a, b) => b.score - a.score)
@@ -310,6 +301,7 @@ exports.handleChat = async (req, res) => {
         }
       }
 
+      // Khuyên khích: Đổi logic này thành TextSearch của Supabase nếu số lượng sản phẩm lớn hơn 30
       const { data: allProducts } = await supabase
         .from('products')
         .select(`
@@ -319,18 +311,15 @@ exports.handleChat = async (req, res) => {
           product_variants(color, size)
         `)
         .eq('status', 'active')
-        .limit(30);
+        .limit(50); // Tăng giới hạn lên một chút để tăng độ chính xác khi lọc thủ công
 
-      // ── SMART SEARCH: lọc sản phẩm liên quan trước khi đưa cho AI ──
       const lastUserMessage = messages
         .slice()
         .reverse()
         .find((m) => m.role === 'user')?.content || '';
 
       const products = filterRelevantProducts(lastUserMessage, allProducts || [], 10);
-      // ────────────────────────────────────────────────────────────────
 
-      // Tạo bảng tra cứu chặt chẽ để AI không nhầm thông tin
       const prodDetails = products?.map((p, index) => {
         const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
         const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
@@ -358,14 +347,12 @@ exports.handleChat = async (req, res) => {
       console.error("⚠️ Lỗi thu thập dữ liệu store:", err.message);
     }
 
-    // 3. Lấy FAQ
     let faqContext = "";
     try {
       const { data: faqs } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(10);
       faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
     } catch (e) {}
 
-    // 4. PROMPT SIÊU CHẶT CHẼ
     const systemInstruction = `
       Bạn là Virtual Stylist cao cấp của FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
       
@@ -384,7 +371,7 @@ exports.handleChat = async (req, res) => {
       6. ĐÓNG VAI: Bạn là Stylist chuyên nghiệp, không bao giờ nói mình là AI.
     `;
 
-    // 5. Gọi AI (Manual Stream)
+    // 5. Gọi AI và Stream
     try {
       const formattedMessages = messages.map((msg) => {
         const attachmentsText = msg.attachments?.length
@@ -397,10 +384,7 @@ exports.handleChat = async (req, res) => {
             : `Các tệp đính kèm:\n${attachmentsText}`
           : msg.content;
 
-        return {
-          role: msg.role,
-          content,
-        };
+        return { role: msg.role, content };
       });
 
       const result = await streamText({
@@ -408,12 +392,12 @@ exports.handleChat = async (req, res) => {
         system: systemInstruction,
         messages: formattedMessages,
         onFinish: async ({ text }) => {
-          if (sessionId === 'temporary-popup-chat') {
-            return;
-          }
-          await supabase.from('chat_messages').insert({
-            session_id: sessionId, sender_role: 'bot', content: text,
-          });
+          if (sessionId === 'temporary-popup-chat') return;
+          try {
+            await supabase.from('chat_messages').insert({
+              session_id: sessionId, sender_role: 'bot', content: text,
+            });
+          } catch (dbErr) { console.error("Lỗi lưu bot message:", dbErr.message); }
         },
       });
 
@@ -421,8 +405,7 @@ exports.handleChat = async (req, res) => {
       res.setHeader('Transfer-Encoding', 'chunked');
 
       for await (const textPart of result.textStream) {
-        const safeText = textPart.replace(/\n/g, '');
-        res.write(`0:${safeText}\n`);
+        res.write(`0:${JSON.stringify(textPart)}\n`);
       }
       res.end();
     } catch (aiErr) {
