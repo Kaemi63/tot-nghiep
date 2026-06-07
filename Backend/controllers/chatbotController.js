@@ -283,10 +283,28 @@ exports.handleChat = async (req, res) => {
           userContext = `Khách hàng: ${profile.fullname} | Giới tính: ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'Khác'}\n`;
         }
       }
-
+      let reviewContext = "Hiện chưa có đánh giá nào nổi bật cho nhóm sản phẩm này.";
+      try {
+        const { data: topReviews } = await supabase
+          .from('reviews')
+          .select('comment, rating, products(name)')
+          .eq('status', 'approved')
+          .gte('rating', 4)
+          .limit(5);
+        
+        if (topReviews && topReviews.length > 0) {
+          reviewContext = topReviews.map(r => `Khách hàng khen sản phẩm "${r.products?.name}": "${r.comment}" (${r.rating}⭐)`).join('\n');
+        }
+      } catch (revErr) {
+        console.error("⚠️ Lỗi lấy dữ liệu reviews:", revErr.message);
+      }
       if (params.isGeneralGreeting) {
         // Nhánh xử lý khi khách chat nói chuyện phiếm/chào hỏi
-        storeContext = `${userContext}--- NGỮ CẢNH --- Khách hàng đang giao tiếp xã giao, hỏi thông tin chung hoặc chào hỏi. Hãy đóng vai một Virtual Stylist cao cấp chào đón họ nồng nhiệt và gợi ý họ tham khảo các bộ sưu tập mới của cửa hàng.`;
+        storeContext = `
+        ${userContext}
+        --- NGỮ CẢNH --- Khách hàng đang giao tiếp xã giao, hỏi thông tin chung hoặc chào hỏi. Hãy đóng vai một Virtual Stylist cao cấp chào đón họ nồng nhiệt và gợi ý họ tham khảo các bộ sưu tập mới của cửa hàng.
+        --- ĐÁNH GIÁ NỔI BẬT TẠI CỬA HÀNG ---
+        ${reviewContext}`;
       } else {
         // Logic tối ưu !inner động: Chỉ kích hoạt INNER JOIN lọc cứng khi AI thực sự bắt được slug từ câu chat
         const hasCategory = !!params.categorySlug;
@@ -329,7 +347,8 @@ exports.handleChat = async (req, res) => {
             ${userContext}
             --- DANH SÁCH SẢN PHẨM KHỚP KHỎA MÃN TRUY VẤN ---
             ${prodDetails}
-
+            --- ĐÁNH GIÁ THỰC TẾ TỪ CÁC KHÁCH HÀNG TRƯỚC ĐÂY ---
+            ${reviewContext}
             --- YÊU CẦU ĐỐI CHIẾU CỦA KHÁCH ---
             - Thương hiệu mong muốn: ${params.brandSlug || 'Khách chưa chọn cụ thể'}
             - Kích thước mong muốn (Size): ${params.size || 'Khách chưa chọn cụ thể'}
@@ -351,6 +370,8 @@ exports.handleChat = async (req, res) => {
             Hiện tại các dòng sản phẩm thuộc danh mục slug "${params.categorySlug || ''}" hoặc thương hiệu slug "${params.brandSlug || ''}" mà khách tìm kiếm đang tạm thời hết hàng tại chi nhánh.
             Hãy lịch sự cáo lỗi với Quý khách và chủ động điều hướng họ tham khảo qua một vài siêu phẩm thiết kế cao cấp khác đang rất sẵn hàng tại store:
             ${fallbackDetails}
+            --- ĐÁNH GIÁ CHUNG TẠI STORE ---
+            ${reviewContext}
           `;
         }
       }
