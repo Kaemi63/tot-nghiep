@@ -213,9 +213,6 @@ exports.handleChat = async (req, res) => {
     const { messages, sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Thiếu sessionId" });
 
-    // =========================================================================
-    // 2. LƯU TIN NHẮN USER VÀO DATABASE (GIỮ NGUYÊN LOGIC GỐC)
-    // =========================================================================
     try {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.role === 'user') {
@@ -242,9 +239,7 @@ exports.handleChat = async (req, res) => {
       .reverse()
       .find((m) => m.role === 'user')?.content || '';
 
-    // =========================================================================
     // 3. BƯỚC 1: AI BÓC TÁCH THAM SỐ (DỰA VÀO HỆ THỐNG SLUG THỰC TẾ)
-    // =========================================================================
     let params = { categorySlug: null, brandSlug: null, size: null, feature: null, isGeneralGreeting: true };
     
     try {
@@ -270,14 +265,12 @@ exports.handleChat = async (req, res) => {
         prompt: `Bạn là trợ lý ảo cao cấp chuyên trích xuất thực thể. Hãy phân tích câu chat này của khách để điền vào phiếu thông tin dữ liệu: "${lastUserMessage}"`,
       });
       params = extractResult.object;
-      console.log("📊 Kết quả AI bóc tách JSON:", JSON.stringify(params, null, 2));
+      console.log(" Kết quả AI bóc tách JSON:", JSON.stringify(params, null, 2));
     } catch (extractErr) {
-      console.error("⚠️ Lỗi bóc tách tham số ở Bước 1:", extractErr.message);
+      console.error("Lỗi bóc tách tham số ở Bước 1:", extractErr.message);
     }
 
-    // =========================================================================
     // 4. BƯỚC 2: TRUY VẤN DYNAMIC SQL DƯỚI DATABASE (TỐI ƯU !INNER ĐỘNG)
-    // =========================================================================
     let storeContext = "";
     try {
       // Thu thập thông tin khách hàng nền
@@ -372,9 +365,7 @@ exports.handleChat = async (req, res) => {
       faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
     } catch (e) {}
 
-    // =========================================================================
     // 5. BƯỚC 3: SYSTEM INSTRUCTION & KHỞI CHẠY LUỒNG STREAM TEXT
-    // =========================================================================
     const systemInstruction = `
       Bạn là Virtual Stylist cao cấp của thương hiệu thời trang FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
       
@@ -446,12 +437,12 @@ exports.handleChat = async (req, res) => {
       res.end();
 
     } catch (aiErr) {
-      console.error("💥 Lỗi tại luồng Stream AI:", aiErr.message);
+      console.error("Lỗi tại luồng Stream AI:", aiErr.message);
       res.status(500).json({ error: aiErr.message });
     }
 
   } catch (error) {
-    console.error("💥 Lỗi toàn cục hệ thống tại handleChat:", error);
+    console.error("Lỗi toàn cục hệ thống tại handleChat:", error);
     res.status(500).json({ error: error.message });
   }
 };
