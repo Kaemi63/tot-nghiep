@@ -1,6 +1,7 @@
-const { streamText, convertToCoreMessages } = require('ai');
+const { streamText, convertToCoreMessages,generateObject } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const supabase = require('../config/supabaseClient');
+const { z } = require('zod');
 
 // Khởi tạo Google Gemini
 const google = createGoogleGenerativeAI({
@@ -207,172 +208,191 @@ exports.deleteSession = async (req, res) => {
   }
 };
 
-const STOPWORDS_VI = new Set([
-  'tôi', 'bạn', 'mình', 'cho', 'cái', 'của', 'và', 'với',
-  'là', 'có', 'không', 'được', 'muốn', 'cần', 'tìm', 'mua', 'xem',
-  'hỏi', 'về', 'này', 'kia', 'đó', 'thì', 'mà', 'ở', 'trong',
-  'nào', 'gi', 'gì', 'sao', 'thế', 'nên', 'hay', 'hoặc', 'ơi',
-  'ạ', 'nhé', 'nha', 'vậy', 'thôi', 'lắm', 'quá', 'rất', 'một',
-].map(str => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')));
-
-const normalize = (str = '') =>
-  str
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .trim();
-
-const tokenize = (text) =>
-  normalize(text)
-    .split(/\s+/)
-    .filter((t) => t.length > 0 && !STOPWORDS_VI.has(t)); 
-
-const filterRelevantProducts = (userQuery, products = [], topK = 10) => {
-  if (!userQuery || products.length === 0) return products.slice(0, topK);
-
-  const queryTokens = tokenize(userQuery);
-  if (queryTokens.length === 0) return products.slice(0, topK);
-
-  const scored = products.map((p) => {
-    const productText = normalize([
-      p.name,
-      p.categories?.name,
-      p.product_variants?.map((v) => `${v.color} ${v.size}`).join(' '),
-      p.product_specifications?.map((s) => `${s.spec_name} ${s.spec_value}`).join(' '),
-    ]
-      .filter(Boolean)
-      .join(' '));
-
-    let score = 0;
-    for (const token of queryTokens) {
-      if (productText.includes(token)) {
-        const nameText = normalize(p.name || '');
-        score += nameText.includes(token) ? 2 : 1;
-      }
-    }
-
-    return { product: p, score };
-  });
-
-  const relevant = scored.filter((s) => s.score > 0);
-  if (relevant.length === 0) return products.slice(0, topK);
-
-  return relevant
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .map((s) => s.product);
-};
-
 exports.handleChat = async (req, res) => {
   try {
     const { messages, sessionId } = req.body;
     if (!sessionId) return res.status(400).json({ error: "Thiếu sessionId" });
 
-    // 1. Lưu tin nhắn User
+    // =========================================================================
+    // 2. LƯU TIN NHẮN USER VÀO DATABASE (GIỮ NGUYÊN LOGIC GỐC)
+    // =========================================================================
     try {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage?.role === 'user') {
-        const savedContent = lastMessage.attachments ? JSON.stringify({
-          content: lastMessage.content,
-          attachments: lastMessage.attachments.map(({ type, filename }) => ({ type, filename })),
-        }) : lastMessage.content;
 
+        // Cấu hình vật phẩm đính kèm thành object metadata
+        const userMetadata = lastMessage.attachments ? {
+          attachments: lastMessage.attachments.map(({ type, filename }) => ({ type, filename }))
+        } : null;
+      
         await supabase.from('chat_messages').insert({
           session_id: sessionId,
           sender_role: 'user',
-          content: savedContent
+          content: lastMessage.content || '', // Chỉ lưu text thuần của khách
+          metadata: userMetadata // Đẩy object/json vào đây
         });
       }
-    } catch (e) { console.error("Lỗi lưu user:", e.message); }
+    } catch (e) { 
+      console.error("⚠️ Lỗi lưu tin nhắn user:", e.message); 
+    }
 
-    // 2. THU THẬP DỮ LIỆU
+    // Lấy tin nhắn cuối cùng của khách để đưa vào AI bóc tách
+    const lastUserMessage = messages
+      .slice()
+      .reverse()
+      .find((m) => m.role === 'user')?.content || '';
+
+    // =========================================================================
+    // 3. BƯỚC 1: AI BÓC TÁCH THAM SỐ (DỰA VÀO HỆ THỐNG SLUG THỰC TẾ)
+    // =========================================================================
+    let params = { categorySlug: null, brandSlug: null, size: null, feature: null, isGeneralGreeting: true };
+    
+    try {
+      const extractResult = await generateObject({
+        model: google('gemini-2.5-flash'),
+        schema: z.object({
+          categorySlug: z.string().nullable().describe(
+            'Khớp nhu cầu khách với 1 trong các SLUG danh mục viết thường sau: loafers, men-shoes, sneakers, oxfords-derbies, knitwear, fragrance, leather-goods, coats-jackets. Nếu không khớp thì để null.'
+          ),
+          brandSlug: z.string().nullable().describe(
+            'Khớp thương hiệu khách nhắc đến với SLUG viết thường sau: loro-piana, brioni, hermes, brunello-cucinelli, bottega-veneta, the-row, zegna. Nếu không khớp thì để null.'
+          ),
+          size: z.string().nullable().describe(
+            'Kích thước sản phẩm dưới dạng chuỗi (Ví dụ: S, M, L, XL hoặc số "35", "36", "41", "42" nếu là giày).'
+          ),
+          feature: z.string().nullable().describe(
+            'Các đặc điểm, nhu cầu khác của khách viết bằng tiếng Việt không dấu (Ví dụ: chay bo, em chan, thu cong, da be togo).'
+          ),
+          isGeneralGreeting: z.boolean().describe(
+            'True nếu câu chat chỉ là chào hỏi xã giao, hỏi địa chỉ shop, thời gian mở cửa, bàn luận ngoài lề và KHÔNG CHỨA nhu cầu tìm xem sản phẩm cụ thể.'
+          )
+        }),
+        prompt: `Bạn là trợ lý ảo cao cấp chuyên trích xuất thực thể. Hãy phân tích câu chat này của khách để điền vào phiếu thông tin dữ liệu: "${lastUserMessage}"`,
+      });
+      params = extractResult.object;
+      console.log("📊 Kết quả AI bóc tách JSON:", JSON.stringify(params, null, 2));
+    } catch (extractErr) {
+      console.error("⚠️ Lỗi bóc tách tham số ở Bước 1:", extractErr.message);
+    }
+
+    // =========================================================================
+    // 4. BƯỚC 2: TRUY VẤN DYNAMIC SQL DƯỚI DATABASE (TỐI ƯU !INNER ĐỘNG)
+    // =========================================================================
     let storeContext = "";
     try {
+      // Thu thập thông tin khách hàng nền
       const { data: sessionData } = await supabase.from('chat_sessions').select('user_id').eq('id', sessionId).single();
       const userId = sessionData?.user_id;
-      
       let userContext = "";
       if (userId) {
         const { data: profile } = await supabase.from('profiles').select('fullname, gender').eq('id', userId).single();
         if (profile) {
-          userContext = `Khách hàng: ${profile.fullname} | Giới tính: ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'Khác'}`;
+          userContext = `Khách hàng: ${profile.fullname} | Giới tính: ${profile.gender === 'male' ? 'Nam' : profile.gender === 'female' ? 'Nữ' : 'Khác'}\n`;
         }
       }
 
-      // Khuyên khích: Đổi logic này thành TextSearch của Supabase nếu số lượng sản phẩm lớn hơn 30
-      const { data: allProducts } = await supabase
-        .from('products')
-        .select(`
-          name, base_price, 
-          categories(name),
-          product_specifications(spec_name, spec_value),
-          product_variants(color, size)
-        `)
-        .eq('status', 'active')
-        .limit(50); // Tăng giới hạn lên một chút để tăng độ chính xác khi lọc thủ công
+      if (params.isGeneralGreeting) {
+        // Nhánh xử lý khi khách chat nói chuyện phiếm/chào hỏi
+        storeContext = `${userContext}--- NGỮ CẢNH --- Khách hàng đang giao tiếp xã giao, hỏi thông tin chung hoặc chào hỏi. Hãy đóng vai một Virtual Stylist cao cấp chào đón họ nồng nhiệt và gợi ý họ tham khảo các bộ sưu tập mới của cửa hàng.`;
+      } else {
+        // Logic tối ưu !inner động: Chỉ kích hoạt INNER JOIN lọc cứng khi AI thực sự bắt được slug từ câu chat
+        const hasCategory = !!params.categorySlug;
+        const hasBrand = !!params.brandSlug;
 
-      const lastUserMessage = messages
-        .slice()
-        .reverse()
-        .find((m) => m.role === 'user')?.content || '';
+        const categoryJoin = hasCategory ? 'categories!inner(name, slug)' : 'categories(name, slug)';
+        const brandJoin = hasBrand ? 'brands!inner(name, slug)' : 'brands(name, slug)';
 
-      const products = filterRelevantProducts(lastUserMessage, allProducts || [], 10);
+        let query = supabase
+          .from('products')
+          .select(`
+            name, base_price,
+            ${categoryJoin}, 
+            ${brandJoin},
+            product_specifications(spec_name, spec_value),
+            product_variants(color, size)
+          `)
+          .eq('status', 'active');
 
-      const prodDetails = products?.map((p, index) => {
-        const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
-        const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
-        return `[SP${index + 1}] Tên: ${p.name} || Giá: ${p.base_price}đ || Loại: ${p.categories?.name} || Đặc điểm: ${specs} || Kho: ${variants}`;
-      }).join('\n');
+        // Áp điều kiện lọc chính xác theo cấu trúc địa chỉ bảng phụ
+        if (hasCategory) {
+          query = query.eq('categories.slug', params.categorySlug);
+        }
+        if (hasBrand) {
+          query = query.eq('brands.slug', params.brandSlug);
+        }
 
-      const { data: topReviews } = await supabase
-        .from('reviews')
-        .select('comment, rating, products(name)')
-        .eq('status', 'approved')
-        .gte('rating', 4)
-        .limit(5);
-      
-      const reviewContext = topReviews?.map(r => `Khách hàng khen ${r.products?.name}: "${r.comment}"`).join('\n');
+        // Thực thi quét dữ liệu giới hạn 10 sản phẩm khớp nhất
+        const { data: matchedProducts } = await query.limit(10);
 
-      storeContext = `
-        ${userContext}
-        --- BẢNG TRA CỨU SẢN PHẨM CHI TIẾT ---
-        ${prodDetails}
-        
-        --- ĐÁNH GIÁ THỰC TẾ ---
-        ${reviewContext}
-      `;
+        if (matchedProducts && matchedProducts.length > 0) {
+          // Chuẩn hóa mảng dữ liệu thô thành chuỗi văn bản cho AI dễ đọc scannable
+          const prodDetails = matchedProducts.map((p, index) => {
+            const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
+            const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
+            return `[SP${index + 1}] Tên: ${p.name} || Giá: ${p.base_price}đ || Danh mục: ${p.categories?.name} || Thương hiệu: ${p.brands?.name || 'FSA'} || Đặc điểm: ${specs} || Kho hàng: ${variants}`;
+          }).join('\n');
+
+          storeContext = `
+            ${userContext}
+            --- DANH SÁCH SẢN PHẨM KHỚP KHỎA MÃN TRUY VẤN ---
+            ${prodDetails}
+
+            --- YÊU CẦU ĐỐI CHIẾU CỦA KHÁCH ---
+            - Thương hiệu mong muốn: ${params.brandSlug || 'Khách chưa chọn cụ thể'}
+            - Kích thước mong muốn (Size): ${params.size || 'Khách chưa chọn cụ thể'}
+            - Đặc điểm yêu cầu thêm: ${params.feature || 'Không có'}
+            
+            --- HƯỚNG DẪN BẮT BUỘC CHO STYLIST ---
+            Bạn hãy kiểm tra kỹ kho hàng của các [SPx] ở trên. 
+            Nếu có sản phẩm trùng khớp hoàn toàn với hãng và size khách hỏi, hãy giới thiệu nồng nhiệt và hướng dẫn phối đồ. 
+            Nếu sản phẩm hiện có bị thiếu size hoặc lệch hãng khách cần, hãy trung thực thông báo tình hình kho hiện tại, giới thiệu các mẫu sẵn có ở trên và khéo léo hỏi xem Quý khách có muốn cân nhắc các lựa chọn này không.
+          `;
+        } else {
+          // Luồng dự phòng (Fallback) khi thực sự hết hàng
+          const { data: fallbackProducts } = await supabase.from('products').select('name, base_price, categories(name)').eq('status', 'active').limit(5);
+          const fallbackDetails = fallbackProducts?.map(p => `- ${p.name} (${p.base_price}đ - Thuộc nhóm: ${p.categories?.name})`).join('\n') || '';
+
+          storeContext = `
+            ${userContext}
+            --- THÔNG BÁO HỆ THỐNG KHO --- 
+            Hiện tại các dòng sản phẩm thuộc danh mục slug "${params.categorySlug || ''}" hoặc thương hiệu slug "${params.brandSlug || ''}" mà khách tìm kiếm đang tạm thời hết hàng tại chi nhánh.
+            Hãy lịch sự cáo lỗi với Quý khách và chủ động điều hướng họ tham khảo qua một vài siêu phẩm thiết kế cao cấp khác đang rất sẵn hàng tại store:
+            ${fallbackDetails}
+          `;
+        }
+      }
     } catch (err) {
-      console.error("⚠️ Lỗi thu thập dữ liệu store:", err.message);
+      console.error("⚠️ Lỗi truy vấn hoặc xử lý dữ liệu ở Bước 2:", err.message);
     }
 
+    // Lấy dữ liệu FAQ
     let faqContext = "";
     try {
-      const { data: faqs } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(10);
+      const { data: faqs } = await supabase.from('chatbot_faqs').select('question, answer').eq('is_active', true).limit(5);
       faqContext = faqs?.map(f => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n") || "";
     } catch (e) {}
 
+    // =========================================================================
+    // 5. BƯỚC 3: SYSTEM INSTRUCTION & KHỞI CHẠY LUỒNG STREAM TEXT
+    // =========================================================================
     const systemInstruction = `
-      Bạn là Virtual Stylist cao cấp của FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
+      Bạn là Virtual Stylist cao cấp của thương hiệu thời trang FSA. Bạn làm việc dựa trên nguyên tắc: TRA CỨU TRƯỚC, TRẢ LỜI SAU.
       
-      DỮ LIỆU CỬA HÀNG:
+      DỮ LIỆU CỬA HÀNG ĐƯỢC CẤP TỪ DATABASE BIẾN ĐỘNG:
       ${storeContext}
       
-      KIẾN THỨC FAQ:
+      KIẾN THỨC NỀN FAQ:
       ${faqContext}
       
-      QUY TẮC BẮT BUỘC:
-      1. TRA CỨU CHÍNH XÁC: Khi khách hỏi về sản phẩm, bạn PHẢI tìm đúng dòng [SPx] của sản phẩm đó. Tuyệt đối không lấy thông tin Màu/Size của sản phẩm khác gán cho sản phẩm này.
-      2. TRUNG THỰC: Nếu sản phẩm khách hỏi không có trong danh sách, hãy lịch sự báo là "Hiện mẫu này chưa có sẵn trong hệ thống" thay vì tự chế thông tin.
-      3. CÁ NHÂN HÓA: Dựa vào giới tính khách hàng để gợi ý đồ phù hợp (Nam không gợi ý váy nữ).
-      4. PHONG CÁCH: Sang trọng, tinh tế, gọi khách là "Quý khách".
-      5. ĐỊNH DẠNG: Sử dụng gạch đầu dòng, xuống dòng rõ ràng.
-      6. ĐÓNG VAI: Bạn là Stylist chuyên nghiệp, không bao giờ nói mình là AI.
+      QUY TẮC PHỤC VỤ BẮT BUỘC:
+      1. TRA CỨU CHÍNH XÁC: Bạn chỉ được phép tư vấn các thông tin (Giá, Màu sắc, Size số) có xuất hiện tường minh trong các dòng [SPx] thuộc dữ liệu cửa hàng phía trên. Tuyệt đối không tự bịa ra thông số ngoài đời thực.
+      2. TRUNG THỰC: Nếu hệ thống báo kho hàng trống hoặc hết hàng, hãy lịch sự thông báo thay vì cố tình lấp liếm dữ liệu.
+      3. PHONG CÁCH: Sang trọng, đẳng cấp, tinh tế. Luôn gọi khách hàng là "Quý khách". Trình bày thông tin scannable, rõ ràng bằng các gạch đầu dòng và có khoảng xuống dòng hợp lý.
+      4. ĐÓNG VAI: Bạn là một chuyên viên tư vấn thời trang thực thụ bằng xương bằng thịt, không bao giờ được xưng hô mình là AI, mô hình ngôn ngữ hay Chatbot.
     `;
 
-    // 5. Gọi AI và Stream
     try {
+      // Chuẩn hóa mảng tin nhắn lịch sử và xử lý tệp đính kèm (Giữ nguyên logic gốc của bạn)
       const formattedMessages = messages.map((msg) => {
         const attachmentsText = msg.attachments?.length
           ? msg.attachments.map((att) => `- [${att.type}] ${att.filename}`).join('\n')
@@ -387,6 +407,7 @@ exports.handleChat = async (req, res) => {
         return { role: msg.role, content };
       });
 
+      // Gọi streamText trả kết quả trực tiếp từ cấu hình mẫu google của bạn
       const result = await streamText({
         model: google('gemini-2.5-flash'),
         system: systemInstruction,
@@ -394,24 +415,43 @@ exports.handleChat = async (req, res) => {
         onFinish: async ({ text }) => {
           if (sessionId === 'temporary-popup-chat') return;
           try {
+            // Tự động lưu tin nhắn phản hồi của Bot kèm metadata bóc tách
             await supabase.from('chat_messages').insert({
-              session_id: sessionId, sender_role: 'bot', content: text,
+              session_id: sessionId, 
+              sender_role: 'bot', 
+              content: text,
+              metadata: {
+                extracted_parameters: {
+                  categorySlug: params.categorySlug,
+                  brandSlug: params.brandSlug,
+                  size: params.size,
+                  feature: params.feature,
+                  isGeneralGreeting: params.isGeneralGreeting
+                }
+              }
             });
-          } catch (dbErr) { console.error("Lỗi lưu bot message:", dbErr.message); }
+          } catch (dbErr) { 
+            console.error("⚠️ Lỗi lưu bot message:", dbErr.message); 
+          }
         },
       });
 
+      // Thiết lập Header chuẩn luồng stream chunked truyền tải dữ liệu thời gian thực
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
 
       for await (const textPart of result.textStream) {
-        res.write(`0:${JSON.stringify(textPart)}\n`);
+        res.write(`0:${JSON.stringify(textPart)}\n`); 
       }
       res.end();
+
     } catch (aiErr) {
+      console.error("💥 Lỗi tại luồng Stream AI:", aiErr.message);
       res.status(500).json({ error: aiErr.message });
     }
+
   } catch (error) {
+    console.error("💥 Lỗi toàn cục hệ thống tại handleChat:", error);
     res.status(500).json({ error: error.message });
   }
 };
