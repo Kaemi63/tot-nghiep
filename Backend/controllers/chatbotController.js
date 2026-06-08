@@ -241,7 +241,7 @@ exports.handleChat = async (req, res) => {
 
     // 3. BƯỚC 1: AI BÓC TÁCH THAM SỐ (DỰA VÀO HỆ THỐNG SLUG THỰC TẾ)
     let params = { categorySlug: null, brandSlug: null, size: null, feature: null, isGeneralGreeting: true };
-    
+    let currentMatchedProducts = [];
     try {
       const extractResult = await generateObject({
         model: google('gemini-2.5-flash'),
@@ -337,6 +337,7 @@ exports.handleChat = async (req, res) => {
 
         if (matchedProducts && matchedProducts.length > 0) {
           // Chuẩn hóa mảng dữ liệu thô thành chuỗi văn bản cho AI dễ đọc scannable
+          currentMatchedProducts = matchedProducts;
           const prodDetails = matchedProducts.map((p, index) => {
             const specs = p.product_specifications?.map(s => `${s.spec_name}: ${s.spec_value}`).join(' | ') || 'N/A';
             const variants = p.product_variants?.map(v => `${v.color}(${v.size})`).join(', ') || 'Liên hệ';
@@ -362,6 +363,7 @@ exports.handleChat = async (req, res) => {
         } else {
           // Luồng dự phòng (Fallback) khi thực sự hết hàng
           const { data: fallbackProducts } = await supabase.from('products').select('name, base_price, categories(name)').eq('status', 'active').limit(5);
+          currentMatchedProducts = fallbackProducts || [];
           const fallbackDetails = fallbackProducts?.map(p => `- ${p.name} (${p.base_price}đ - Thuộc nhóm: ${p.categories?.name})`).join('\n') || '';
 
           storeContext = `
@@ -433,13 +435,7 @@ exports.handleChat = async (req, res) => {
               sender_role: 'bot', 
               content: text,
               metadata: {
-                extracted_parameters: {
-                  categorySlug: params.categorySlug,
-                  brandSlug: params.brandSlug,
-                  size: params.size,
-                  feature: params.feature,
-                  isGeneralGreeting: params.isGeneralGreeting
-                },
+                extracted_parameters: params,
                 suggested_products: currentMatchedProducts.map(p => ({
                   name: p.name,
                   base_price: p.base_price,
