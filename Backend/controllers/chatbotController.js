@@ -439,7 +439,14 @@ exports.handleChat = async (req, res) => {
                   size: params.size,
                   feature: params.feature,
                   isGeneralGreeting: params.isGeneralGreeting
-                }
+                },
+                suggested_products: currentMatchedProducts.map(p => ({
+                  name: p.name,
+                  base_price: p.base_price,
+                  category: p.categories?.name,
+                  brand: p.brands?.name,
+                  variants: p.product_variants || []
+                }))
               }
             });
           } catch (dbErr) { 
