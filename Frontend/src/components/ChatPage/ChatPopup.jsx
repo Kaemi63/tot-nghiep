@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MessageSquare, X, Minimize2, Maximize2 } from 'lucide-react';
 import ChatWindow from '../../components/ChatPage/ChatWindow';
 
-const ChatWidgetPopup = ({ token, userProfile, currentSection }) => {
+const ChatWidgetPopup = ({ token, userProfile, currentSection, onSelectProduct }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [instanceKey, setInstanceKey] = useState(0); 
@@ -73,6 +73,7 @@ const ChatWidgetPopup = ({ token, userProfile, currentSection }) => {
                 userProfile={userProfile}
                 sessionId={popupSessionId}
                 theme="light"
+                onSelectProduct={onSelectProduct}
               />
             </div>
           </div>

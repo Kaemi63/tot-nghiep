@@ -305,6 +305,7 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
             sessionId={activeSessionId}
             theme={theme}
             setTheme={setTheme}
+            onSelectProduct={openProductDetail}
           />
         )}
         {activeSection === 'myAccount' && <MyAccount />}
@@ -313,6 +314,7 @@ const ChatPage = ({ onLogout, theme, setTheme }) => {
         token={token} 
         userProfile={userProfile} 
         currentSection={activeSection} 
+        onSelectProduct={openProductDetail}
       />
     </div>
   );

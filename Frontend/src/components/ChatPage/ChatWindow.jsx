@@ -7,8 +7,79 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { chatbotService } from '../../services/chatbotService'; 
 import toast from 'react-hot-toast';
+import { supabase } from '../../services/supabaseClient';
 
-const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTheme }) => {
+// Helper to extract suggested products based on chatbot content
+const getSuggestedProductsForMessage = (content, allProducts) => {
+  if (!content || !allProducts || allProducts.length === 0) return [];
+  const contentLower = content.toLowerCase();
+  
+  return allProducts.filter(product => {
+    if (!product.name) return false;
+    const nameLower = product.name.toLowerCase();
+    return contentLower.includes(nameLower);
+  });
+};
+
+// Component to render suggested products for a chatbot response
+const SuggestedProducts = ({ content, allProducts, onSelectProduct }) => {
+  const matched = React.useMemo(() => {
+    return getSuggestedProductsForMessage(content, allProducts);
+  }, [content, allProducts]);
+
+  if (matched.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-1 duration-300">
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-pulse"></span>
+        Sản phẩm gợi ý cho bạn
+      </p>
+      
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        {matched.map((product) => {
+          const image = product.thumbnail_url || `https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=300&q=80`;
+          const priceStr = product.base_price ? product.base_price.toLocaleString('vi-VN') + 'đ' : '—';
+          const brandName = product.brands?.name || 'FSA';
+
+          return (
+            <div
+              key={product.id}
+              onClick={() => onSelectProduct && onSelectProduct(product)}
+              className="flex-shrink-0 w-64 bg-slate-50 border border-slate-100 hover:border-indigo-100 hover:bg-white rounded-2xl p-3 flex gap-3 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300"
+            >
+              <img
+                src={image}
+                alt={product.name}
+                className="w-16 h-16 object-cover rounded-xl bg-slate-100 flex-shrink-0"
+              />
+              <div className="flex flex-col justify-between min-w-0 flex-1">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                    {brandName}
+                  </span>
+                  <h4 className="text-xs font-semibold text-slate-800 line-clamp-2 leading-tight">
+                    {product.name}
+                  </h4>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs font-bold text-indigo-600">
+                    {priceStr}
+                  </span>
+                  <span className="text-[10px] font-semibold text-indigo-600 hover:underline">
+                    Xem chi tiết →
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTheme, onSelectProduct }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,12 +88,48 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTh
   const [isPlusOpen, setIsPlusOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [draftAttachments, setDraftAttachments] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const scrollRef = useRef(null);
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const plusContainerRef = useRef(null);
   const recognitionRef = useRef(null);
   const recognitionBaseRef = useRef('');
+
+  // Load active products on mount
+  useEffect(() => {
+    const fetchAllProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select(`
+            id,
+            name,
+            slug,
+            short_description,
+            description,
+            thumbnail_url,
+            base_price,
+            is_featured,
+            status,
+            brands (id, name, slug, logo_url),
+            categories (id, name, slug),
+            product_images (id, image_url, sort_order),
+            product_specifications (id, spec_name, spec_value),
+            product_variants (id, variant_name, sku, price, stock_quantity, color, size)
+          `)
+          .eq('status', 'active');
+        if (error) {
+          console.error("Lỗi fetch all products:", error);
+        } else if (data) {
+          setAllProducts(data);
+        }
+      } catch (err) {
+        console.error("Lỗi fetch all products:", err);
+      }
+    };
+    fetchAllProducts();
+  }, []);
 
   // 1. Khởi tạo lịch sử khi có sessionId từ ChatPage
   useEffect(() => {
@@ -296,54 +403,68 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTh
           </div>
         ) : (
           <div className="w-full max-w-4xl space-y-8 pb-10">
-            {messages.map((m) => (
-              <div key={m.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border ${m.role === 'user' ? 'bg-slate-100 border-slate-200' : 'bg-white border-indigo-100 shadow-sm'}`}>
-                  {m.role === 'user' ? (
-                    <img src={userProfile?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="user" className="w-full h-full object-cover" />
-                  ) : (
-                    <Zap size={20} className="text-indigo-600" />
-                  )}
-                </div>
-                <div className="flex-1 space-y-2 min-w-0">
-                  <span className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">
-                    {m.role === 'user' ? (userProfile?.fullname || 'Bạn') : 'FSA AI Assistant'}
-                  </span>
-                  <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base prose-p:my-1">
-                    {m.attachments?.length > 0 ? (
-                      <div className="space-y-3">
-                        {m.attachments.map((att, index) => (
-                          <div key={index} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            {att.type === 'image' ? (
-                              <img src={att.dataUrl || att.preview} alt={att.filename} className="h-16 w-16 rounded-md object-cover" />
-                            ) : (
-                              <div className="flex h-16 w-16 items-center justify-center rounded-md bg-white text-xs font-semibold text-slate-600">Tệp</div>
-                            )}
-                            <div className="truncate">
-                              <p className="font-semibold text-slate-700">{att.filename}</p>
-                              <p className="text-xs text-slate-500">{att.type === 'image' ? 'Ảnh' : 'Tệp đính kèm'}</p>
-                            </div>
-                          </div>
-                        ))}
-                        {m.content && (
-                          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {m.content}
-                          </ReactMarkdown>
-                        )}
-                      </div>
-                    ) : m.type === 'image' ? (
-                      <img src={m.content} alt={m.filename || 'image'} className="rounded-md max-w-xs" />
-                    ) : m.type === 'file' ? (
-                      <a href={m.content} download={m.filename} className="text-indigo-600 underline">{m.filename}</a>
+            {messages.map((m, index) => {
+              const isLastMessage = index === messages.length - 1;
+              const isBotStreaming = isLastMessage && isLoading;
+              
+              return (
+                <div key={m.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border ${m.role === 'user' ? 'bg-slate-100 border-slate-200' : 'bg-white border-indigo-100 shadow-sm'}`}>
+                    {m.role === 'user' ? (
+                      <img src={userProfile?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="user" className="w-full h-full object-cover" />
                     ) : (
-                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {m.content}
-                      </ReactMarkdown>
+                      <Zap size={20} className="text-indigo-600" />
                     )}
                   </div>
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <span className="font-bold text-[10px] text-slate-400 uppercase tracking-widest">
+                      {m.role === 'user' ? (userProfile?.fullname || 'Bạn') : 'FSA AI Assistant'}
+                    </span>
+                    <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base prose-p:my-1">
+                      {m.attachments?.length > 0 ? (
+                        <div className="space-y-3">
+                          {m.attachments.map((att, idx) => (
+                            <div key={idx} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              {att.type === 'image' ? (
+                                <img src={att.dataUrl || att.preview} alt={att.filename} className="h-16 w-16 rounded-md object-cover" />
+                              ) : (
+                                <div className="flex h-16 w-16 items-center justify-center rounded-md bg-white text-xs font-semibold text-slate-600">Tệp</div>
+                              )}
+                              <div className="truncate">
+                                <p className="font-semibold text-slate-700">{att.filename}</p>
+                                <p className="text-xs text-slate-500">{att.type === 'image' ? 'Ảnh' : 'Tệp đính kèm'}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {m.content && (
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {m.content}
+                            </ReactMarkdown>
+                          )}
+                        </div>
+                      ) : m.type === 'image' ? (
+                        <img src={m.content} alt={m.filename || 'image'} className="rounded-md max-w-xs" />
+                      ) : m.type === 'file' ? (
+                        <a href={m.content} download={m.filename} className="text-indigo-600 underline">{m.filename}</a>
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {m.content}
+                        </ReactMarkdown>
+                      )}
+
+                      {/* Hiển thị thẻ gợi ý sản phẩm khi bot trả lời xong */}
+                      {m.role === 'assistant' && !isBotStreaming && (
+                        <SuggestedProducts 
+                          content={m.content} 
+                          allProducts={allProducts} 
+                          onSelectProduct={onSelectProduct} 
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {isLoading && (
               <div className="flex items-center gap-2 text-indigo-500 text-sm font-medium animate-pulse ml-14">
                 <div className="flex gap-1">
