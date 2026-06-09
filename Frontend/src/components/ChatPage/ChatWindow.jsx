@@ -22,12 +22,112 @@ const getSuggestedProductsForMessage = (content, allProducts) => {
 };
 
 // Component to render suggested products for a chatbot response
-const SuggestedProducts = ({ content, allProducts, onSelectProduct }) => {
-  const matched = React.useMemo(() => {
-    return getSuggestedProductsForMessage(content, allProducts);
-  }, [content, allProducts]);
+const SuggestedProducts = ({ messageId, sessionId, content, allProducts, onSelectProduct }) => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  if (matched.length === 0) return null;
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchSuggestedProducts = async () => {
+      setLoading(true);
+      try {
+        let metadata = null;
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+        
+        // 1. Try to fetch from database message metadata first
+        if (!isUuid && sessionId && sessionId !== 'temporary-popup-chat') {
+          // If it's a temporary timestamp ID, wait a short moment for backend to save
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { data } = await supabase
+            .from('chat_messages')
+            .select('metadata')
+            .eq('session_id', sessionId)
+            .eq('sender_role', 'bot')
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (data && data.length > 0) {
+            metadata = data[0].metadata;
+          }
+        } else if (isUuid) {
+          const { data } = await supabase
+            .from('chat_messages')
+            .select('metadata')
+            .eq('id', messageId)
+            .single();
+            
+          metadata = data?.metadata;
+        }
+
+        const suggested = metadata?.suggested_products;
+        let matchedProducts = [];
+
+        if (suggested && Array.isArray(suggested) && suggested.length > 0) {
+          const productNames = suggested.map(p => p.name);
+          
+          // Query details only for these specific products
+          const { data: fullProducts } = await supabase
+            .from('products')
+            .select(`
+              id,
+              name,
+              slug,
+              short_description,
+              description,
+              thumbnail_url,
+              base_price,
+              is_featured,
+              status,
+              brands (id, name, slug, logo_url),
+              categories (id, name, slug),
+              product_images (id, image_url, sort_order),
+              product_specifications (id, spec_name, spec_value),
+              product_variants (id, variant_name, sku, price, stock_quantity, color, size)
+            `)
+            .in('name', productNames)
+            .eq('status', 'active');
+            
+          if (fullProducts && fullProducts.length > 0) {
+            matchedProducts = fullProducts;
+          }
+        }
+
+        // 2. Fallback: If metadata fetching failed or returned no products, use client-side text matching
+        if (matchedProducts.length === 0 && content && allProducts && allProducts.length > 0) {
+          const contentLower = content.toLowerCase();
+          matchedProducts = allProducts.filter(product => {
+            if (!product.name) return false;
+            const nameLower = product.name.toLowerCase();
+            return contentLower.includes(nameLower);
+          });
+        }
+
+        if (isMounted) {
+          setProducts(matchedProducts);
+        }
+      } catch (err) {
+        console.error("Lỗi tải gợi ý sản phẩm:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchSuggestedProducts();
+    
+    return () => { isMounted = false; };
+  }, [messageId, sessionId, content, allProducts]);
+
+  if (loading) {
+    return (
+      <div className="mt-4 pt-3 border-t border-slate-100 flex gap-4 overflow-x-auto pb-2">
+        <div className="w-64 h-24 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
+
+  if (products.length === 0) return null;
 
   return (
     <div className="mt-4 pt-3 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-1 duration-300">
@@ -37,7 +137,7 @@ const SuggestedProducts = ({ content, allProducts, onSelectProduct }) => {
       </p>
       
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        {matched.map((product) => {
+        {products.map((product) => {
           const image = product.thumbnail_url || `https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=300&q=80`;
           const priceStr = product.base_price ? product.base_price.toLocaleString('vi-VN') + 'đ' : '—';
           const brandName = product.brands?.name || 'FSA';
@@ -455,6 +555,8 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTh
                       {/* Hiển thị thẻ gợi ý sản phẩm khi bot trả lời xong */}
                       {m.role === 'assistant' && !isBotStreaming && (
                         <SuggestedProducts 
+                          messageId={m.id}
+                          sessionId={sessionId}
                           content={m.content} 
                           allProducts={allProducts} 
                           onSelectProduct={onSelectProduct} 
