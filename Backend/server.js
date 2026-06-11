@@ -13,6 +13,7 @@ const reviewRoutes = require('./routes/review');
 const chatbotRoutes = require('./routes/chatbotRoutes');
 const bannerRoutes = require('./routes/banner');
 const paymentRoutes = require('./routes/payment');
+const dashboardRoutes = require('./routes/dashboard');
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 require('dotenv').config();
@@ -30,7 +31,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/chat', chatbotRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/payments', paymentRoutes);
-
+app.use('/api/dashboard', dashboardRoutes);
 const checkSupabaseConnection = async () => {
   try {
     const { data, error } = await supabase.from('any_table_name').select('count', { count: 'exact', head: true });
