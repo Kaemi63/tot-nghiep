@@ -6,9 +6,10 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { chatbotService } from '../../services/chatbotService'; 
+import { adminChatbotService } from '../../services/adminChatbotService'; 
 import toast from 'react-hot-toast';
 
-const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTheme }) => {
+const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTheme, setSessionId: propSetSessionId }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +19,7 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
   const [isRecording, setIsRecording] = useState(false);
   const [draftAttachments, setDraftAttachments] = useState([]);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  
   const scrollRef = useRef(null);
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -25,31 +27,32 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
   const recognitionRef = useRef(null);
   const recognitionBaseRef = useRef('');
 
-  // 1. Khởi tạo lịch sử khi có sessionId từ AdminAI
+  // Đồng bộ sessionId từ trang cha AdminAI truyền xuống
   useEffect(() => {
     if (propSessionId) {
       setSessionId(propSessionId);
     }
   }, [propSessionId]);
 
+  // Khởi tạo lịch sử chat từ database giống phía User thường
   useEffect(() => {
     const initChat = async () => {
-      if (!token) {
+      if (!token || !propSessionId) {
         setIsInitializing(false);
         return;
       }
-
-      if (!propSessionId) {
-        setIsInitializing(false);
-        return;
-      }
-
       try {
         setIsInitializing(true);
         const history = await chatbotService.getHistory(propSessionId, token);
-        if (history) setMessages(history);
+        if (history) {
+          setMessages(history.map(msg => ({
+            id: msg.id || Math.random().toString(),
+            role: msg.sender_role || msg.role,
+            content: msg.content || ''
+          })));
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Lỗi lấy lịch sử chat Admin:", err);
       } finally {
         setIsInitializing(false);
       }
@@ -57,100 +60,105 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     initChat();
   }, [token, propSessionId]);
 
-  // 2. Tự động cuộn
+  // Tự động cuộn mượt xuống đáy khung chat khi có chữ mới đổ về
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
 
-  // 3. HÀM GỬI TIN NHẮN
+  // XỬ LÝ GỬI TIN NHẮN & ĐỌC LUỒNG CHỮ CHẠY STREAM
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     const text = input.trim();
     if (!text && draftAttachments.length === 0) return;
-    if (isLoading || !sessionId) return;
+    if (isLoading) return;
 
+    // 1. Đóng gói tin nhắn của Admin đưa lên màn hình trước
     const userMsg = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}`,
       role: 'user',
-      content: text,
-      attachments: draftAttachments.map(({ type, filename, dataUrl }) => ({ type, filename, dataUrl })),
+      content: text
     };
-    setMessages((prev) => [...prev, userMsg]);
+    
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setDraftAttachments([]);
     setIsLoading(true);
 
+    // 2. Tạo sẵn node tin nhắn rỗng cho AI Assistant để chuẩn bị hứng chữ chạy
+    const botMsgId = `bot-${Date.now()}`;
+    setMessages(prev => [...prev, { id: botMsgId, role: 'assistant', content: '' }]);
+
     try {
-      const response = await fetch('http://localhost:3001/api/chat', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({
-          messages: [...messages, userMsg],
-          sessionId: sessionId,
-        }),
-      });
+      let activeId = sessionId;
+      if (!activeId) {
+        const newSession = await chatbotService.createSession(token);
+        activeId = newSession.id;
+        setSessionId(activeId);
+        if (propSetSessionId) propSetSessionId(activeId);
+      }
 
-      if (!response.ok) throw new Error("Server response not OK");
+      const updatedMessagesForAPI = [...messages, userMsg].map(m => ({
+        role: m.role,
+        content: m.content
+      }));
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      // Gọi API Backend nhận về luồng Stream Body
+      const streamBody = await adminChatbotService.sendAnalyticsMessage(token, activeId, updatedMessagesForAPI);
       
-      let botMsgId = (Date.now() + 1).toString();
-      setMessages((prev) => [...prev, { id: botMsgId, role: 'assistant', content: '' }]);
+      const reader = streamBody.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let finished = false;
+      let accumulatedText = '';
 
-      let accumulatedContent = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      while (!finished) {
+        const { value, done } = await reader.read();
+        finished = done;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: !done });
+          const lines = chunk.split('\n');
 
-        const chunk = decoder.decode(value, { stream: true });
-        let cleanedChunk = chunk.replace(/^0:|^e:|^d:|^a:|^m:|^/gm, '');
+          for (const line of lines) {
+            if (line.startsWith('0:')) {
+              try {
+                const rawStr = line.substring(2).trim();
+                const parsedChunk = JSON.parse(rawStr);
+                accumulatedText += parsedChunk;
 
-        if (cleanedChunk.startsWith('"') && cleanedChunk.endsWith('"')) {
-            cleanedChunk = cleanedChunk.slice(1, -1);
+                setMessages(prev => 
+                  prev.map(msg => msg.id === botMsgId ? { ...msg, content: accumulatedText } : msg)
+                );
+              } catch (parseError) {
+                // Bỏ qua các mảnh chunk chưa kết thúc dòng hoàn chỉnh
+              }
+            }
+          }
         }
-
-        cleanedChunk = cleanedChunk.replace(/\\n/g, '\n').replace(/\\"/g, '"');
-        accumulatedContent += cleanedChunk;
-
-        setMessages((prev) => 
-          prev.map((msg) => msg.id === botMsgId ? { ...msg, content: accumulatedContent } : msg)
-        );
       }
     } catch (error) {
-      console.error("Chat Error:", error);
-      toast.error("Có lỗi xảy ra khi AI trả lời");
+      console.error("Lỗi luồng xử lý Chat Admin:", error);
+      toast.error(error.message || "Không thể phân tích dữ liệu hệ thống lúc này.");
+      setMessages(prev => prev.filter(msg => msg.id !== botMsgId));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Plus menu handlers
+  // Các hàm bổ trợ đính kèm File / Ảnh nâng cao
   const handlePlusToggle = (e) => {
     e.stopPropagation();
-    setIsPlusOpen((v) => !v);
+    setIsPlusOpen(v => !v);
   };
 
   const addAttachment = (file, type) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const preview = type === 'image' ? URL.createObjectURL(file) : null;
-
     const reader = new FileReader();
     reader.onload = () => {
-      setDraftAttachments((prev) => [
+      setDraftAttachments(prev => [
         ...prev,
-        {
-          id,
-          type,
-          filename: file.name,
-          preview,
-          dataUrl: reader.result,
-        },
+        { id, type, filename: file.name, preview, dataUrl: reader.result }
       ]);
     };
     reader.readAsDataURL(file);
@@ -162,28 +170,14 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     imageInputRef.current?.click();
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    addAttachment(file, 'image');
-    e.target.value = null;
-  };
-
   const handleSelectFile = (e) => {
     e?.stopPropagation?.();
     setIsPlusOpen(false);
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    addAttachment(file, 'file');
-    e.target.value = null;
-  };
-
-  const removeDraftAttachment = (attachmentId) => {
-    setDraftAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+  const removeDraftAttachment = (id) => {
+    setDraftAttachments(prev => prev.filter(att => att.id !== id));
   };
 
   useEffect(() => {
@@ -192,11 +186,11 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     return () => document.removeEventListener('click', onDocClick);
   }, [isPlusOpen]);
 
-  // Microphone handlers
+  // Xử lý Ghi âm / Giọng nói sang Văn bản bằng AI SpeechRecognition
   const startRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error('Trình duyệt không hỗ trợ nhận dạng giọng nói');
+      toast.error('Trình duyệt của bạn không hỗ trợ Microphone Voice API');
       return;
     }
     recognitionBaseRef.current = input || '';
@@ -204,25 +198,27 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     recognition.lang = 'vi-VN';
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
+
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results).map(r => r[0].transcript).join('');
       setInput(recognitionBaseRef.current + transcript);
     };
+
     recognition.onerror = (err) => {
-      console.error('Speech error', err);
-      toast.error('Lỗi khi ghi âm');
+      console.error('Speech error:', err);
       setIsRecording(false);
     };
+
     recognition.onend = () => {
       setIsRecording(false);
     };
+
     recognitionRef.current = recognition;
     try {
       recognition.start();
       setIsRecording(true);
     } catch (err) {
       console.error(err);
-      toast.error('Không thể bắt đầu ghi âm');
     }
   };
 
@@ -246,19 +242,26 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
   };
 
   if (isInitializing) {
-    return <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100"><p className="text-slate-400">Đang tải...</p></div>;
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950">
+        <p className="text-slate-400 text-sm tracking-wider animate-pulse">Đang đồng bộ hóa kho dữ liệu AI Admin...</p>
+      </div>
+    );
   }
 
   return (
     <div className={`flex-1 flex flex-col h-full transition-colors duration-200 ${theme === 'dark' ? 'bg-slate-950 text-white' : 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900'}`}>
-      {/* Header Admin */}
+      {/* Header Điều khiển */}
       <div className={`border-b ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} px-6 py-4 flex items-center justify-between`}>
-        <h1 className="text-xl font-bold">AI Chatbot Admin</h1>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+          <h1 className="text-lg font-bold tracking-wide">Trợ Lý Phân Tích Doanh Thu Hệ Thống</h1>
+        </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowAdminPanel(!showAdminPanel)}
             className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'hover:bg-slate-800' : 'hover:bg-slate-200'}`}
-            title="Admin Panel"
+            title="Xem Metadata AI"
           >
             <Settings size={20} />
           </button>
@@ -271,111 +274,95 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
         </div>
       </div>
 
-      {/* Admin Panel */}
+      {/* Cụm thống kê thông số AI thu nhỏ */}
       {showAdminPanel && (
         <div className={`border-b ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'} px-6 py-4`}>
-          <div className="grid grid-cols-3 gap-4">
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 size={18} className="text-blue-500" />
-                <p className="text-sm font-semibold">Messages</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white shadow-sm border border-slate-100'}`}>
+              <div className="flex items-center gap-2 mb-1 text-slate-500 dark:text-slate-400">
+                <BarChart3 size={16} className="text-blue-500" />
+                <p className="text-xs font-semibold uppercase">Số lượng hội thoại</p>
               </div>
-              <p className="text-2xl font-bold">{messages.length}</p>
+              <p className="text-xl font-bold">{messages.length} tin nhắn</p>
             </div>
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Zap size={18} className="text-yellow-500" />
-                <p className="text-sm font-semibold">Session ID</p>
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white shadow-sm border border-slate-100'}`}>
+              <div className="flex items-center gap-2 mb-1 text-slate-500 dark:text-slate-400">
+                <Zap size={16} className="text-amber-500" />
+                <p className="text-xs font-semibold uppercase">Mã định danh (Session ID)</p>
               </div>
-              <p className="text-xs font-mono break-all">{sessionId?.substring(0, 12)}...</p>
+              <p className="text-xs font-mono truncate">{sessionId ? sessionId : 'Trống'}</p>
             </div>
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'}`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Settings size={18} className="text-green-500" />
-                <p className="text-sm font-semibold">Status</p>
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white shadow-sm border border-slate-100'}`}>
+              <div className="flex items-center gap-2 mb-1 text-slate-500 dark:text-slate-400">
+                <Settings size={16} className="text-emerald-500" />
+                <p className="text-xs font-semibold uppercase">Model AI Engine</p>
               </div>
-              <p className="text-sm">{isLoading ? 'Processing...' : 'Ready'}</p>
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Gemini 1.5 Flash (Real-time Stream)</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-6 space-y-4"
-      >
+      {/* Toàn bộ vùng hiển thị tin nhắn */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400">
-            <Zap size={48} className="mb-3 opacity-50" />
-            <p className="text-lg font-semibold">Bắt đầu cuộc trò chuyện</p>
-            <p className="text-sm">Gõ tin nhắn hoặc sử dụng các tính năng bên dưới</p>
+            <Zap size={44} className="mb-3 text-indigo-500 opacity-60 animate-bounce" />
+            <p className="text-base font-bold text-slate-700 dark:text-slate-300">Hệ Thống Phân Tích Kinh Doanh Đã Sẵn Sàng</p>
+            <p className="text-xs text-center max-w-sm mt-1 text-slate-400">Hãy hỏi về: Doanh số, các sản phẩm bán chạy nhất, hoặc yêu cầu AI dự báo tình hình kinh doanh tháng tới.</p>
           </div>
         ) : (
           messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xl px-4 py-3 rounded-lg ${
-                  msg.role === 'user'
-                    ? theme === 'dark' ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white'
-                    : theme === 'dark' ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-900 border border-slate-200'
-                }`}
-              >
-                {msg.attachments && msg.attachments.length > 0 && (
-                  <div className="mb-2 space-y-2">
-                    {msg.attachments.map((att) => (
-                      <div key={att.filename} className="text-sm">
-                        {att.type === 'image' ? (
-                          <img src={att.dataUrl} alt={att.filename} className="max-w-xs rounded" />
-                        ) : (
-                          <a href={att.dataUrl} download={att.filename} className="underline hover:no-underline">
-                            📄 {att.filename}
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                  className="prose prose-sm max-w-none"
-                >
-                  {msg.content}
-                </ReactMarkdown>
+            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-2xl px-5 py-3.5 rounded-2xl shadow-sm leading-relaxed ${
+                msg.role === 'user'
+                  ? 'bg-indigo-600 text-white rounded-tr-none'
+                  : theme === 'dark' 
+                    ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700' 
+                    : 'bg-white text-slate-900 border border-slate-200 rounded-tl-none'
+              }`}>
+                {/* ĐÃ FIX: Bọc className của Tailwind vào thẻ div thay vì gán vào ReactMarkdown */}
+                <div className={`prose prose-sm max-w-none ${theme === 'dark' ? 'prose-invert text-slate-100' : 'prose-slate text-slate-800'}`}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           ))
         )}
-        {isLoading && (
+        
+        {/* Hiệu ứng loading */}
+        {isLoading && messages[messages.length - 1]?.content === '' && (
           <div className="flex justify-start">
-            <div className={`px-4 py-3 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border border-slate-200'}`}>
-              <div className="flex gap-2">
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></div>
+            <div className={`px-4 py-3 rounded-xl ${theme === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200 shadow-sm'}`}>
+              <div className="flex gap-1.5 items-center">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Attachments Preview */}
+      {/* Bản xem trước File đính kèm */}
       {draftAttachments.length > 0 && (
         <div className={`border-t ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} px-6 py-3 flex flex-wrap gap-2`}>
           {draftAttachments.map((att) => (
-            <div key={att.id} className={`relative p-2 rounded ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            <div key={att.id} className={`relative p-1.5 rounded-lg border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
               {att.type === 'image' && att.preview ? (
-                <img src={att.preview} alt={att.filename} className="h-16 w-16 object-cover rounded" />
+                <img src={att.preview} alt="preview" className="h-14 w-14 object-cover rounded-md shadow-sm" />
               ) : (
-                <div className="h-16 w-16 flex items-center justify-center text-xs text-center break-words">📄</div>
+                <div className="h-14 w-14 flex items-center justify-center text-xl bg-white rounded-md border border-dashed border-slate-300">📄</div>
               )}
               <button
+                type="button"
                 onClick={() => removeDraftAttachment(att.id)}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-xs shadow hover:bg-red-600 transition-colors"
               >
                 ×
               </button>
@@ -384,13 +371,10 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
         </div>
       )}
 
-      {/* Input Area */}
-      <form
-        onSubmit={handleFormSubmit}
-        className={`border-t ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} px-6 py-4`}
-      >
+      {/* Ô nhập liệu Form Submit */}
+      <form onSubmit={handleFormSubmit} className={`border-t ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} px-6 py-4`}>
         <div className="flex gap-3 items-end">
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -400,78 +384,49 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
                   handleFormSubmit(e);
                 }
               }}
-              placeholder="Gõ tin nhắn hoặc câu hỏi..."
-              className={`flex-1 p-3 rounded-lg border outline-none transition-all resize-none ${
+              placeholder="Nhập câu hỏi phân tích dữ liệu (Bấm Enter để gửi)..."
+              className={`w-full p-3 rounded-xl border outline-none transition-all resize-none text-sm leading-relaxed ${
                 theme === 'dark'
-                  ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-500'
-                  : 'border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-indigo-500'
+                  ? 'border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:border-indigo-500'
+                  : 'border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:border-indigo-500 bg-white shadow-inner'
               }`}
               rows="3"
             />
           </div>
+          
           <div className="flex gap-2 flex-col">
             <div className="relative" ref={plusContainerRef}>
               <button
                 type="button"
                 onClick={handlePlusToggle}
-                className={`p-3 rounded-lg transition-all ${
-                  theme === 'dark'
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                }`}
+                className={`p-2.5 rounded-xl transition-all ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
               >
                 <Plus size={20} />
               </button>
               {isPlusOpen && (
-                <div
-                  className={`absolute bottom-full right-0 mb-2 rounded-lg shadow-lg z-10 ${
-                    theme === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={handleSelectImage}
-                    className={`block w-full text-left px-4 py-2 text-sm hover:${
-                      theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'
-                    } transition-all`}
-                  >
-                    📷 Thêm ảnh
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSelectFile}
-                    className={`block w-full text-left px-4 py-2 text-sm hover:${
-                      theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'
-                    } transition-all`}
-                  >
-                    📄 Thêm file
-                  </button>
+                <div className={`absolute bottom-full right-0 mb-2 rounded-xl shadow-xl z-20 w-32 border overflow-hidden ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                  <button type="button" onClick={handleSelectImage} className={`block w-full text-left px-4 py-2.5 text-xs hover:${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-50'} transition-all font-medium`}>📷 Đính kèm ảnh</button>
+                  <button type="button" onClick={handleSelectFile} className={`block w-full text-left px-4 py-2.5 text-xs hover:${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-50'} transition-all font-medium`}>📄 Đính kèm file</button>
                 </div>
               )}
             </div>
+            
             <button
               type="button"
               onClick={toggleRecording}
-              className={`p-3 rounded-lg transition-all ${
-                isRecording
-                  ? theme === 'dark'
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-red-500 hover:bg-red-600'
-                  : theme === 'dark'
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                  : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-              }`}
+              className={`p-2.5 rounded-xl transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' : theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
             >
-              <Mic size={20} className={isRecording ? 'text-white animate-pulse' : ''} />
+              <Mic size={20} />
             </button>
+            
             <button
               type="submit"
-              disabled={isLoading}
-              className={`p-3 rounded-lg transition-all ${
+              disabled={isLoading || (!input.trim() && draftAttachments.length === 0)}
+              className={`p-2.5 rounded-xl text-white transition-all shadow-md ${
                 theme === 'dark'
-                  ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700'
-                  : 'bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-300'
-              } text-white`}
+                  ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 disabled:text-slate-600'
+                  : 'bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400'
+              }`}
             >
               <SendHorizontal size={20} />
             </button>
@@ -479,20 +434,8 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
         </div>
       </form>
 
-      {/* Hidden inputs */}
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageChange}
-        className="hidden"
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      <input ref={imageInputRef} type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) addAttachment(f, 'image'); e.target.value = null; }} className="hidden" />
+      <input ref={fileInputRef} type="file" onChange={(e) => { const f = e.target.files?.[0]; if (f) addAttachment(f, 'file'); e.target.value = null; }} className="hidden" />
     </div>
   );
 };
