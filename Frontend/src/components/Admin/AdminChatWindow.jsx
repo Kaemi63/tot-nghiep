@@ -43,11 +43,11 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
       }
       try {
         setIsInitializing(true);
-        const history = await chatbotService.getHistory(propSessionId, token);
+        const history = await adminChatbotService.getHistory(propSessionId, token);
         if (history) {
           setMessages(history.map(msg => ({
             id: msg.id || Math.random().toString(),
-            role: msg.sender_role || msg.role,
+            role: msg.sender_role === 'bot' ? 'assistant' : (msg.sender_role === 'admin' || msg.sender_role === 'user' ? 'admin' : (msg.role || 'assistant')),
             content: msg.content || ''
           })));
         }
@@ -60,10 +60,18 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     initChat();
   }, [token, propSessionId]);
 
-  // Tự động cuộn mượt xuống đáy khung chat khi có chữ mới đổ về
+  // Tự động cuộn xuống đáy khi có tin nhắn mới hoặc đang loading, nhưng chỉ cuộn nếu user đang ở gần đáy
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+      
+      const lastMessage = messages[messages.length - 1];
+      const isUserMessage = lastMessage?.role === 'admin' || lastMessage?.role === 'user';
+      
+      if (isNearBottom || isUserMessage) {
+        scrollRef.current.scrollTop = scrollHeight;
+      }
     }
   }, [messages, isLoading]);
 
@@ -77,7 +85,7 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     // 1. Đóng gói tin nhắn của Admin đưa lên màn hình trước
     const userMsg = {
       id: `user-${Date.now()}`,
-      role: 'user',
+      role: 'admin',
       content: text
     };
     
@@ -93,14 +101,14 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
     try {
       let activeId = sessionId;
       if (!activeId) {
-        const newSession = await chatbotService.createSession(token);
+        const newSession = await adminChatbotService.createSession(token);
         activeId = newSession.id;
         setSessionId(activeId);
         if (propSetSessionId) propSetSessionId(activeId);
       }
 
       const updatedMessagesForAPI = [...messages, userMsg].map(m => ({
-        role: m.role,
+        role: m.role === 'admin' ? 'user' : m.role,
         content: m.content
       }));
 
@@ -304,7 +312,7 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
       )}
 
       {/* Toàn bộ vùng hiển thị tin nhắn */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-6 no-scrollbar">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400">
             <Zap size={44} className="mb-3 text-indigo-500 opacity-60 animate-bounce" />
@@ -313,9 +321,9 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex ${msg.role === 'admin' || msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-2xl px-5 py-3.5 rounded-2xl shadow-sm leading-relaxed ${
-                msg.role === 'user'
+                msg.role === 'admin' || msg.role === 'user'
                   ? 'bg-indigo-600 text-white rounded-tr-none'
                   : theme === 'dark' 
                     ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700' 

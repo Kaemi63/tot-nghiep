@@ -111,13 +111,27 @@ exports.deleteAdminSession = async (req, res) => {
 
 exports.handleAdminAnalyticsChat = async (req, res) => {
   try {
-    const { messages } = req.body; 
+    const { messages, sessionId } = req.body; 
 
     // Lấy tin nhắn cuối cùng của Admin để đưa vào AI phân tích ý định
     const lastAdminMessage = messages
       .slice()
       .reverse()
-      .find((m) => m.role === 'user')?.content || '';
+      .find((m) => m.role === 'user' || m.role === 'admin')?.content || '';
+
+    // Lưu tin nhắn của Admin vào database
+    try {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.role === 'user' && sessionId) {
+        await supabase.from('chat_messages').insert({
+          session_id: sessionId,
+          sender_role: 'admin',
+          content: lastMessage.content || ''
+        });
+      }
+    } catch (dbErr) {
+      console.error("⚠️ Lỗi lưu tin nhắn Admin vào database:", dbErr.message);
+    }
 
     // =========================================================================
     // BƯỚC 1: AI PHÂN TÍCH Ý ĐỊNH (INTENT ROUTING)
@@ -283,6 +297,19 @@ QUY TẮC PHẢN HỒI:
       model: google('gemini-2.5-flash'),
       system: systemPrompt,
       messages: messages,
+      onFinish: async ({ text }) => {
+        if (sessionId) {
+          try {
+            await supabase.from('chat_messages').insert({
+              session_id: sessionId,
+              sender_role: 'bot',
+              content: text
+            });
+          } catch (dbErr) {
+            console.error("⚠️ Lỗi lưu tin nhắn Bot vào database:", dbErr.message);
+          }
+        }
+      }
     });
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');

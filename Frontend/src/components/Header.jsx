@@ -5,7 +5,11 @@ const Header = ({ onLoginClick, onRegisterClick }) => {
     <header className="fixed top-0 left-0 w-full py-6 z-[1000] bg-white/80 backdrop-blur-md">
       <div className="max-w-[1200px] mx-auto flex justify-between items-center px-6 md:px-8">
         <div className="flex items-center gap-3 cursor-pointer">
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg relative flex items-center justify-center after:content-[''] after:block after:w-4 after:h-4 after:bg-blue-500 after:rounded"></div>
+          <img 
+            src="https://bfyqmoyimyjwprvtzvmo.supabase.co/storage/v1/object/public/Logo/Logo/Logo.png" 
+            alt="FSA AI Logo" 
+            className="h-16 w-auto object-contain" 
+          />
           <span className="text-xl font-bold">FSA AI</span>
         </div>
 
