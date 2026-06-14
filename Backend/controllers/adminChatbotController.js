@@ -136,8 +136,21 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
     const lastAdminMessage = messages
       .slice()
       .reverse()
-      .find((m) => m.role === 'user')?.content || '';
+      .find((m) => m.role === 'user' || m.role === 'admin')?.content || '';
 
+    // Lưu tin nhắn của Admin vào database
+    try {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.role === 'user' && sessionId) {
+        await supabase.from('chat_messages').insert({
+          session_id: sessionId,
+          sender_role: 'admin',
+          content: lastMessage.content || ''
+        });
+      }
+    } catch (dbErr) {
+      console.error("⚠️ Lỗi lưu tin nhắn Admin vào database:", dbErr.message);
+    }
     // 3. BƯỚC 1: AI PHÂN TÍCH Ý ĐỊNH (INTENT ROUTING) - TRÁNH TRÀN NGỮ CẢNH CHÀO HỎI
     let intentParams = { isGeneralGreeting: true };
     try {
