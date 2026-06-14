@@ -4,7 +4,7 @@ const supabase = require('../config/supabaseClient');
 const { z } = require('zod');
 
 const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_ADMIN_KEY,
 });
 // 1. TẠO CUỘC HỘI THOẠI MỚI (CHO ADMIN)
 exports.createAdminSession = async (req, res) => {
@@ -119,9 +119,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       .reverse()
       .find((m) => m.role === 'user')?.content || '';
 
-    // =========================================================================
     // BƯỚC 1: AI PHÂN TÍCH Ý ĐỊNH (INTENT ROUTING)
-    // =========================================================================
     let intentParams = { isGeneralGreeting: true };
     try {
       const intentResult = await generateObject({
@@ -140,9 +138,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
 
     let storeContext = "";
 
-    // =========================================================================
     // BƯỚC 2: PHÂN NHÁNH TRUY VẤN D DỮ LIỆU
-    // =========================================================================
     if (intentParams.isGeneralGreeting) {
       // Nhánh 1: Chào hỏi phiếm -> Không truy vấn nặng DB, chỉ tạo ngữ cảnh ngắn gọn
       storeContext = `
@@ -262,22 +258,20 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       `;
     }
 
-    // =========================================================================
     // BƯỚC 3: SYSTEM PROMPT & STREAM TEXT TRẢ PHẢN HỒI
-    // =========================================================================
     const systemPrompt = `
-Bạn là một Giám đốc Tài chính (CFO) kiêm Chuyên gia Phân tích Dữ liệu Kinh doanh (Business Intelligence AI) cấp cao của chuỗi thời trang cao cấp FSA.
-Nhiệm vụ của bạn là đồng hành và hỗ trợ ban quản trị phân tích, vận hành dòng tiền kinh doanh một cách hiệu quả.
+    Bạn là một Giám đốc Tài chính (CFO) kiêm Chuyên gia Phân tích Dữ liệu Kinh doanh (Business Intelligence AI) cấp cao của chuỗi thời trang cao cấp FSA.
+    Nhiệm vụ của bạn là đồng hành và hỗ trợ ban quản trị phân tích, vận hành dòng tiền kinh doanh một cách hiệu quả.
 
-Thời gian hiện tại của hệ thống: Tháng 06 năm 2026.
+    Thời gian hiện tại của hệ thống: Tháng 06 năm 2026.
 
-DỮ LIỆU ĐƯỢC PHÂN PHÁP ĐỘNG:
-${storeContext}
+    DỮ LIỆU ĐƯỢC PHÂN PHÁP ĐỘNG:
+    ${storeContext}
 
-QUY TẮC PHẢN HỒI:
-1. Nếu rơi vào tình huống khách chào hỏi thông thường, hãy tương tác lịch sự ngắn gọn, sẵn sàng tác nghiệp. Không tự ý bung báo cáo khi chưa được yêu cầu.
-2. Nếu phân tích dữ liệu, bắt buộc phải dùng số tiền định dạng VND rõ ràng (Ví dụ: 50.000.000 VND), trình bày khoa học, tiêu đề rõ ràng, gạch đầu dòng tường minh. Giọng điệu chuyên nghiệp, tự tin.
-`;
+    QUY TẮC PHẢN HỒI:
+    1. Nếu rơi vào tình huống khách chào hỏi thông thường, hãy tương tác lịch sự ngắn gọn, sẵn sàng tác nghiệp. Không tự ý bung báo cáo khi chưa được yêu cầu.
+    2. Nếu phân tích dữ liệu, bắt buộc phải dùng số tiền định dạng VND rõ ràng (Ví dụ: 50.000.000 VND), trình bày khoa học, tiêu đề rõ ràng, gạch đầu dòng tường minh. Giọng điệu chuyên nghiệp, tự tin.
+    `;
 
     const result = await streamText({
       model: google('gemini-2.5-flash'),
