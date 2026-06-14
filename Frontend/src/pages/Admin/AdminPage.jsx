@@ -28,7 +28,7 @@ const AdminDashboard = ({ onLogout }) => {
         {activePage !== 'ai' && <UserHeader />}
         
         {/* Khu vực hiển thị nội dung thay đổi */}
-        <main className={activePage === 'ai' ? 'flex-1' : 'flex-1 overflow-y-auto'}>
+        <main className={activePage === 'ai' ? 'flex-1 flex flex-col h-full overflow-hidden' : 'flex-1 overflow-y-auto'}>
           {activePage === 'dashboard' && (
             <Dashboard />
           )}
