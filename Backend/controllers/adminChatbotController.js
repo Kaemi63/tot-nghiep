@@ -111,48 +111,38 @@ exports.deleteAdminSession = async (req, res) => {
 
 exports.handleAdminAnalyticsChat = async (req, res) => {
   try {
-    // 1. KIỂM TRA SESSIONID TỪ FRONTEND TRUYỀN XUỐNG
+    // Lấy thêm sessionId từ body gửi lên để xác định phiên chat dữ liệu
     const { messages, sessionId } = req.body; 
-    if (!sessionId) {
-      return res.status(400).json({ error: "Hệ thống yêu cầu sessionId để lưu lịch sử cuộc hội thoại." });
-    }
 
-    // 2. LƯU VẾT TIN NHẮN CỦA ADMIN (USER) VÀO DATABASE TRƯỚC
-    try {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage?.role === 'user') {
-        await supabase.from('chat_messages').insert({
-          session_id: sessionId,
-          sender_role: 'user',
-          content: lastMessage.content || '',
-          metadata: null // Tin nhắn người dùng nhập không cần lưu metadata phân tích
-        });
-      }
-    } catch (e) {
-      console.error("⚠️ Lỗi lưu vết tin nhắn của Admin vào DB:", e.message);
-    }
-
-    // Lấy nội dung tin nhắn cuối cùng để AI phân tích ý định
+    // Lấy tin nhắn cuối cùng của Admin để đưa vào AI phân tích ý định
     const lastAdminMessage = messages
       .slice()
       .reverse()
       .find((m) => m.role === 'user' || m.role === 'admin')?.content || '';
 
-    // Lưu tin nhắn của Admin vào database
-    try {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage?.role === 'user' && sessionId) {
-        await supabase.from('chat_messages').insert({
-          session_id: sessionId,
-          sender_role: 'admin',
-          content: lastMessage.content || ''
-        });
+    // TỰ ĐỘNG LƯU VẾT TIN NHẮN ĐẦU VÀO CỦA ADMIN VÀO DATABASE
+    if (sessionId && sessionId !== 'temporary-popup-chat') {
+      try {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.role === 'user') {
+          await supabase.from('chat_messages').insert({
+            session_id: sessionId,
+            sender_role: 'admin',
+            content: lastMessage.content || '',
+            metadata: null
+          });
+        }
+      } catch (e) {
+        console.error("⚠️ Lỗi lưu vết tin nhắn của Admin vào DB:", e.message);
       }
-    } catch (dbErr) {
-      console.error("⚠️ Lỗi lưu tin nhắn Admin vào database:", dbErr.message);
     }
-    // 3. BƯỚC 1: AI PHÂN TÍCH Ý ĐỊNH (INTENT ROUTING) - TRÁNH TRÀN NGỮ CẢNH CHÀO HỎI
+    // BƯỚC 1: AI PHÂN TÍCH Ý ĐỊNH  & CƠ CHẾ DỰ PHÒNG CHỐNG NGHẼN API
     let intentParams = { isGeneralGreeting: true };
+    
+    const analyticsKeywords = /doanh thu|bao cao|thong ke|tai chinh|bieu do|san pham|hot|trend|ban chay|kinh doanh|loi nhuan|tien/i;
+    const cleanMessage = lastAdminMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    const cleanKeywords = /doanh thu|bao cao|thong ke|tai chinh|bieu do|san pham|ban chay|kinh doanh|loi nhuan/i;
+
     try {
       const intentResult = await generateObject({
         model: google('gemini-2.5-flash'),
@@ -165,22 +155,31 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       });
       intentParams = intentResult.object;
     } catch (extractErr) {
-      console.error("⚠️ Lỗi bóc tách ý định Admin:", extractErr.message);
+      console.warn("⚠️ AI Tầng 1 quá tải (High Demand). Kích hoạt bộ lọc từ khóa Regex dự phòng...");
+      // Nếu lỗi API xảy ra, hệ thống tự động quét từ khóa để ép AI chạy đúng nhánh dữ liệu
+      if (analyticsKeywords.test(lastAdminMessage) || cleanKeywords.test(cleanMessage)) {
+        console.log("🎯 Khớp từ khóa phân tích! Ép luồng xử lý số liệu.");
+        intentParams.isGeneralGreeting = false;
+      } else {
+        intentParams.isGeneralGreeting = true;
+      }
     }
 
     let storeContext = "";
-    let currentMatchedRevenueData = null; // Biến ngoại cục hứng data để lưu vào metadata ở bước onFinish
+    let currentMatchedRevenueData = null; // Biến ngoại cục hứng data để nén snapshot vào metadata lúc sau
 
-    // 4. BƯỚC 2: PHÂN NHÁNH TRUY VẤN DỮ LIỆU DƯỚI DATABASE
+    // =========================================================================
+    // BƯỚC 2: PHÂN NHÁNH TRUY VẤN DỮ LIỆU
+    // =========================================================================
     if (intentParams.isGeneralGreeting) {
-      // Nhánh 1: Chào hỏi phiếm -> Không truy vấn nặng DB, chỉ tạo ngữ cảnh xã giao ngắn gọn
+      // Nhánh 1: Chào hỏi phiếm -> Không truy vấn nặng DB, chỉ tạo ngữ cảnh ngắn gọn
       storeContext = `
         --- NGỮ CẢNH HỆ THỐNG ---
         Admin đang chào hỏi giao tiếp xã giao hoặc kiểm tra tín hiệu kết nối hệ thống (Ví dụ: hello, hi, chào bạn).
         Hãy đóng vai CFO phản hồi lại một cách ngắn gọn, lịch sự, chuyên nghiệp. Chủ động hỏi xem Admin có cần hỗ trợ trích xuất báo cáo doanh thu, phân tích sản phẩm hot-trend hay lập mô hình dự báo tài chính tháng 6, 7, 8 không.
       `;
     } else {
-      // Nhánh 2: Thực sự hỏi số liệu -> Chạy toàn bộ thuật toán rút trích phân tích nâng cao
+      // Nhánh 2: Thực sự hỏi số liệu -> Chạy toàn bộ thuật toán phân tích nâng cao
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('id, total_amount, created_at')
@@ -271,7 +270,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
 
       const top7Products = sortedProductsAnalysis.slice(0, 7);
 
-      // ĐÓNG GÓI DỮ LIỆU TINH GỌN VÀO BIẾN HỨNG PHỤC VỤ LƯU METADATA Ở BƯỚC SAU
+      // ĐÓNG GÓI DỮ LIỆU TINH GỌN PHỤC VỤ LƯU METADATA LÚC SAU
       currentMatchedRevenueData = {
         total_revenue: totalRevenue,
         total_orders: totalOrders,
@@ -279,7 +278,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
         top_products: top7Products.map(p => ({ name: p.product_name, revenue: p.total_revenue }))
       };
 
-      // Tạo chuỗi siêu ngữ cảnh đưa vào Prompt cho AI đọc số liệu
+      // Đóng gói siêu context báo cáo tài chính
       storeContext = `
       DƯỚI ĐÂY LÀ SỐ LIỆU DOANH THU THỰC TẾ TRÍCH XUẤT ĐỒNG BỘ TỪ DASHBOARD:
       1. SỐ LIỆU TỔNG QUAN KINH DOANH:
@@ -299,31 +298,33 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       `;
     }
 
-    // 5. BƯỚC 3: SYSTEM PROMPT & STREAM TEXT TRẢ PHẢN HỒI KÈM TỰ ĐỘNG NÉN METADATA TRÊN ONFINISH
+    // =========================================================================
+    // BƯỚC 3: SYSTEM PROMPT & STREAM TEXT TRẢ PHẢN HỒI KÈM LƯU BOT VÀO METADATA
+    // =========================================================================
     const systemPrompt = `
-    Bạn là một Giám đốc Tài chính (CFO) kiêm Chuyên gia Phân tích Dữ liệu Kinh doanh (Business Intelligence AI) cấp cao của chuỗi thời trang cao cấp FSA.
-    Nhiệm vụ của bạn là đồng hành và hỗ trợ ban quản trị phân tích số liệu tài chính.
+Bạn là một Giám đốc Tài chính (CFO) kiêm Chuyên gia Phân tích Dữ liệu Kinh doanh (Business Intelligence AI) cấp cao của chuỗi thời trang cao cấp FSA.
+Nhiệm vụ của bạn là đồng hành và hỗ trợ ban quản trị phân tích, vận hành dòng tiền kinh doanh một cách hiệu quả.
 
-    Thời gian hiện tại của hệ thống: Tháng 06 năm 2026.
+Thời gian hiện tại của hệ thống: Tháng 06 năm 2026.
 
-    DỮ LIỆU ĐƯỢC PHÂN PHÁP ĐỘNG:
-    ${storeContext}
+DỮ LIỆU ĐƯỢC PHÂN PHÁP ĐỘNG:
+${storeContext}
 
-    QUY TẮC PHẢN HỒI:
-    1. Nếu rơi vào tình huống khách chào hỏi thông thường, hãy tương tác lịch sự ngắn gọn, sẵn sàng tác nghiệp. Không tự ý bung báo cáo khi chưa được yêu cầu.
-    2. Nếu phân tích dữ liệu, bắt buộc phải dùng số tiền định dạng VND rõ ràng (Ví dụ: 50.000.000 VND), trình bày khoa học, tiêu đề rõ ràng, gạch đầu dòng tường minh. Giọng điệu chuyên nghiệp, tự tin.
-    `;
+QUY TẮC PHẢN HỒI:
+1. Nếu rơi vào tình huống khách chào hỏi thông thường, hãy tương tác lịch sự ngắn gọn, sẵn sàng tác nghiệp. Không tự ý bung báo cáo khi chưa được yêu cầu.
+2. Nếu phân tích dữ liệu, bắt buộc phải dùng số tiền định dạng VND rõ ràng (Ví dụ: 50.000.000 VND), trình bày khoa học, tiêu đề rõ ràng, gạch đầu dòng tường minh. Giọng điệu chuyên nghiệp, tự tin.
+`;
 
     const result = await streamText({
       model: google('gemini-2.5-flash'),
       system: systemPrompt,
       messages: messages,
       onFinish: async ({ text }) => {
-        // Nếu là phiên chat tạm thời ở popup góc màn hình thì không cần lưu lịch sử vào DB
-        if (sessionId === 'temporary-popup-chat') return;
+        // Nếu không có sessionId hoặc là chat tạm thời thì bỏ qua không lưu DB
+        if (!sessionId || sessionId === 'temporary-popup-chat') return;
         
         try {
-          // TỰ ĐỘNG LƯU PHẢN HỒI CỦA BOT VÀ NÉN SNAPSHOT DOANH THU VÀO CỘT METADATA
+          // TỰ ĐỘNG NÉN SNAPSHOT DOANH THU VÀO CỘT METADATA KHI BOT TRẢ LỜI XONG
           await supabase.from('chat_messages').insert({
             session_id: sessionId, 
             sender_role: 'bot', 
@@ -331,7 +332,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
             metadata: {
               analytics_context: {
                 is_greeting: intentParams.isGeneralGreeting,
-                snapshot_summary: currentMatchedRevenueData // Lưu toàn bộ số liệu tính toán ở dạng cấu trúc JSON sạch vào DB
+                snapshot_summary: currentMatchedRevenueData // Đóng băng số liệu kinh doanh đúng thời điểm chat
               }
             }
           });
@@ -342,7 +343,6 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       },
     });
 
-    // 6. THIẾT LẬP LUỒNG TRUYỀN TẢI CHUNKED STREAMING AN TOÀN CHUỖI VỀ GIAO DIỆN
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
 
@@ -352,7 +352,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
     res.end();
 
   } catch (error) {
-    console.error("⚠️ Lỗi nghiêm trọng tại luồng AI Analytics Dashboard:", error.message);
+    console.error("⚠️ Lỗi tại luồng AI Analytics Dashboard:", error.message);
     res.status(500).json({ error: error.message });
   }
 };
