@@ -47,10 +47,10 @@ const checkSupabaseConnection = async () => {
   }
 };
 checkSupabaseConnection();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001; 
 
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`Server đang chạy tại cổng ${PORT}`));
-}
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server đang chạy ổn định trên port ${PORT}`);
+});
 
 module.exports = app;
