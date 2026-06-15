@@ -305,7 +305,7 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
                 <Settings size={16} className="text-emerald-500" />
                 <p className="text-xs font-semibold uppercase">Model AI Engine</p>
               </div>
-              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Gemini 1.5 Flash (Real-time Stream)</p>
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Gemini 2.5 Flash (Real-time Stream)</p>
             </div>
           </div>
         </div>
