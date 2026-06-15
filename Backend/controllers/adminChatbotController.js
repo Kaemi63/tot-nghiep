@@ -168,9 +168,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
     let storeContext = "";
     let currentMatchedRevenueData = null; // Biến ngoại cục hứng data để nén snapshot vào metadata lúc sau
 
-    // =========================================================================
     // BƯỚC 2: PHÂN NHÁNH TRUY VẤN DỮ LIỆU
-    // =========================================================================
     if (intentParams.isGeneralGreeting) {
       // Nhánh 1: Chào hỏi phiếm -> Không truy vấn nặng DB, chỉ tạo ngữ cảnh ngắn gọn
       storeContext = `
@@ -298,9 +296,7 @@ exports.handleAdminAnalyticsChat = async (req, res) => {
       `;
     }
 
-    // =========================================================================
     // BƯỚC 3: SYSTEM PROMPT & STREAM TEXT TRẢ PHẢN HỒI KÈM LƯU BOT VÀO METADATA
-    // =========================================================================
     const systemPrompt = `
 Bạn là một Giám đốc Tài chính (CFO) kiêm Chuyên gia Phân tích Dữ liệu Kinh doanh (Business Intelligence AI) cấp cao của chuỗi thời trang cao cấp FSA.
 Nhiệm vụ của bạn là đồng hành và hỗ trợ ban quản trị phân tích, vận hành dòng tiền kinh doanh một cách hiệu quả.
