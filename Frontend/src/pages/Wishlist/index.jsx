@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient'; 
 import toast, { Toaster } from 'react-hot-toast';
 import WishlistCard from '../../components/Wishlist/WishlistCard.jsx';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL } from '../../config/api';
 
 const WishlistPage = ({ onAddToCart }) => {
   const [items, setItems] = useState([]);
