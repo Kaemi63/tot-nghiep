@@ -1,6 +1,6 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001/api/products';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/products`;
 
 export const productService = {
   // Lấy tất cả sản phẩm cho admin (mọi status, có filter)

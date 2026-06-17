@@ -8,6 +8,7 @@ import 'katex/dist/katex.min.css';
 import { chatbotService } from '../../services/chatbotService'; 
 import toast from 'react-hot-toast';
 import { supabase } from '../../services/supabaseClient';
+import { API_BASE_URL } from '../../config/api';
 
 // Helper to extract suggested products based on chatbot content
 const getSuggestedProductsForMessage = (content, allProducts) => {
@@ -291,7 +292,7 @@ const ChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, setTh
 
     try {
       // BƯỚC 2: Gọi API Backend
-      const response = await fetch('http://localhost:3001/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

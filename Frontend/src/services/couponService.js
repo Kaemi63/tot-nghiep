@@ -1,7 +1,6 @@
 import axios from 'axios';
-
-// Giữ URL gốc đến prefix api
-const API_URL = 'http://localhost:3001/api/coupons';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/coupons`;
 
 const couponService = {
   applyCoupon: async (token, code, orderValue) => {

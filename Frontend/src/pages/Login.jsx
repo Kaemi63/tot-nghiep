@@ -5,6 +5,7 @@ import Picture from '../components/Login/Picture';
 import LoginHeader from '../components/Login/LoginHeader';
 import FormLogin from '../components/Login/FormLogin';
 import SocialLogin from '../components/Login/SocialLogin';
+import { API_BASE_URL } from '../config/api';
 
 const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
   
@@ -12,7 +13,7 @@ const Login = ({ onBack, onNavigateToRegister, onLoginSuccess }) => {
     const loadingToast = toast.loading('Đang kiểm tra thông tin...');
     
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

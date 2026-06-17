@@ -5,6 +5,7 @@ import AdminShell from '../../components/Admin/AdminShell';
 import UserFilters from '../../components/UserManagement/UserFilters';
 import UserTable from '../../components/UserManagement/UserTable';
 import UserEditModal from '../../components/UserManagement/UserEdit';
+import { API_BASE_URL } from '../../config/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -16,7 +17,7 @@ const UserManagement = () => {
     id: '', fullname: '', username: '', email: '', role: 'user', password: '', avatar_url: '' 
   });
 
-  const API_URL = "http://localhost:3001/api/users";
+  const API_URL = `${API_BASE_URL}/api/users`;
 
   // --- Hàm fetch chính ---
   const fetchUsers = useCallback(async () => {

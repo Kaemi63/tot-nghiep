@@ -1,6 +1,6 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001/api/chat';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/chat`;
 
 // Helper để tạo header
 const getAuthHeaders = (token) => ({

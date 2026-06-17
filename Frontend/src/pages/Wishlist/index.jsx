@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient'; 
 import toast, { Toaster } from 'react-hot-toast';
-import WishlistCard from '../../components/Wishlist/WishlistCard.jsx'; 
+import WishlistCard from '../../components/Wishlist/WishlistCard.jsx';
+import { API_BASE_URL } from '../config/api';
 
 const WishlistPage = ({ onAddToCart }) => {
   const [items, setItems] = useState([]);
@@ -16,7 +17,7 @@ const WishlistPage = ({ onAddToCart }) => {
         return;
       }
 
-      const response = await fetch(`http://localhost:3001/api/wishlist/${session.user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/wishlist/${session.user.id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +56,7 @@ const WishlistPage = ({ onAddToCart }) => {
   const handleRemove = async (id) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`http://localhost:3001/api/wishlist/remove/${id}`, { 
+      const response = await fetch(`${API_BASE_URL}/api/wishlist/remove/${id}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`

@@ -5,6 +5,6 @@ module.exports = {
     hostname: "test-payment.momo.vn",
     path: "/v2/gateway/api/create",
     // Chỉnh lại link trỏ về Frontend và Backend của bạn
-    redirectUrl: "http://localhost:5173/payment-success", // Trang Frontend xử lý sau khi khách trả tiền xong
+    redirectUrl: "http://https://fsa-ai-frontend.onrender.com/payment-success", // Trang Frontend xử lý sau khi khách trả tiền xong
     ipnUrl: "https://your-domain.ngrok-free.app/api/payments/webhook", // Link Backend nhận log từ MoMo (Phải dùng ngrok)
 };

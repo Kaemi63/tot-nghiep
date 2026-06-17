@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3001/api/cart';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/cart`;
 
 export const cartService = {
   async getCart(token) {

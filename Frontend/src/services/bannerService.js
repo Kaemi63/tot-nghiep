@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3001/api/banners';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/banners`;
 
 // Hàm helper để lấy token từ localStorage (phục vụ cho các quyền Admin)
 const getAuthConfig = () => {

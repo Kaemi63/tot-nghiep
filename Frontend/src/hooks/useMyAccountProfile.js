@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../services/supabaseClient';
+import { API_BASE_URL } from '../config/api';
 
 const genderMapToView = { male: 'Nam', female: 'Nữ', other: 'Khác' };
 const genderMapToDB = { Nam: 'male', Nữ: 'female', Khác: 'other' };
@@ -19,7 +20,7 @@ export const useUserProfile = () => {
         return null;
       }
 
-      const response = await fetch(`http://localhost:3001/api/auth/profile/${session.user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/profile/${session.user.id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ export const useUserProfile = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch('http://localhost:3001/api/auth/update-profile', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/update-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

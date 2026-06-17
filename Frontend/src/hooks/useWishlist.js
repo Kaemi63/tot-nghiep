@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config/api';
 
 export const useWishlist = () => {
   const [wishlistItems, setWishlistItems] = useState([]);
@@ -17,7 +18,7 @@ export const useWishlist = () => {
       const userId = session.user.id;
 
       // 1. Kiểm tra sản phẩm đã có trong wishlist chưa
-      const responseCheck = await fetch(`http://localhost:3001/api/wishlist/${userId}`, {
+      const responseCheck = await fetch(`${API_BASE_URL}/api/wishlist/${userId}`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
       const currentWishlist = await responseCheck.json();
@@ -28,7 +29,7 @@ export const useWishlist = () => {
 
       if (existingItem) {
         // 2. Đã có -> Xóa khỏi wishlist
-        const removeResponse = await fetch(`http://localhost:3001/api/wishlist/remove/${existingItem.id}`, {
+        const removeResponse = await fetch(`${API_BASE_URL}/api/wishlist/remove/${existingItem.id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${session.access_token}` }
         });
@@ -39,7 +40,7 @@ export const useWishlist = () => {
         }
       } else {
         // 3. Chưa có -> Thêm vào wishlist
-        const addResponse = await fetch('http://localhost:3001/api/wishlist/add', {
+        const addResponse = await fetch(`${API_BASE_URL}/api/wishlist/add`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

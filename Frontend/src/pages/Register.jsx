@@ -4,6 +4,7 @@ import Picture from '../components/Register/Picture';
 import RegisterHeader from '../components/Register/RegisterHeader';
 import FormRegister from '../components/Register/FormRegister';
 import SocialRegister from '../components/Register/SocialRegister';
+import { API_BASE_URL } from '../config/api';
 
 const Register = ({ onBack, onNavigateToLogin }) => {
   
@@ -11,7 +12,7 @@ const Register = ({ onBack, onNavigateToLogin }) => {
     const loadingToast = toast.loading('Đang khởi tạo tài khoản FSA...');
     
     try {
-      const response = await fetch('http://localhost:3001/api/auth/signup', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data), 

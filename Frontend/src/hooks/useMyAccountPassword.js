@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../services/supabaseClient';
+import { API_BASE_URL } from '../config/api';
 
 export const usePasswordChange = (user) => {
   const [passwordData, setPasswordData] = useState({ current: '', newPass: '', confirm: '' });
@@ -24,7 +25,7 @@ export const usePasswordChange = (user) => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch('http://localhost:3001/api/auth/change-password', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

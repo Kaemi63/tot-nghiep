@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient'; // Đảm bảo import đúng đường dẫn đến file cấu hình supabase của bạn
-
-const API_URL = 'http://localhost:3001/api/payments';
+import { API_BASE_URL } from '../config/api';
+const API_URL = `${API_BASE_URL}/api/payments`;
 
 // Hàm cấu hình Headers lấy trực tiếp Token chuẩn từ Session của Supabase
 const getAuthConfig = async () => {

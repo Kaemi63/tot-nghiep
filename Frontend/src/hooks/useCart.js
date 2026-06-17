@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { cartService } from '../services/cartService';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config/api';
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -49,7 +50,7 @@ export const useCart = () => {
   };
 
   try {
-    const res = await fetch('http://localhost:3001/api/cart/add', {
+    const res = await fetch(`${API_BASE_URL}/api/cart/add`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +104,7 @@ const updateCartQuantity = async (cartItemId, newQty) => {
   }
 
   try {
-    const res = await fetch(`http://localhost:3001/api/cart/update`, {
+    const res = await fetch(`${API_BASE_URL}/api/cart/update`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
