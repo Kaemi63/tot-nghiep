@@ -330,7 +330,7 @@ const AdminChatWindow = ({ token, userProfile, sessionId: propSessionId, theme, 
                     : 'bg-white text-slate-900 border border-slate-200 rounded-tl-none'
               }`}>
                 {/* ĐÃ FIX: Bọc className của Tailwind vào thẻ div thay vì gán vào ReactMarkdown */}
-                <div className={`prose prose-sm max-w-none ${theme === 'dark' ? 'prose-invert text-slate-100' : 'prose-slate text-slate-800'}`}>
+                <div className={`prose prose-sm max-w-none ${(msg.role === 'admin' || msg.role === 'user') ? 'prose-invert text-white' : theme === 'dark' ? 'prose-invert text-slate-100' : 'prose-slate text-slate-800'}`}>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkMath]}
                     rehypePlugins={[rehypeKatex]}
